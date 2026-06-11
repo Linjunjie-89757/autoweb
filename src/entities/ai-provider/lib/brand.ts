@@ -1,4 +1,16 @@
 import type { AiProviderConnectionItem } from '../model/types'
+import anthropicLogo from '../assets/anthropic.svg'
+import azureLogo from '../assets/azure.svg'
+import customLogo from '../assets/custom.svg'
+import deepseekLogo from '../assets/deepseek.svg'
+import googleLogo from '../assets/google.svg'
+import kimiLogo from '../assets/kimi.svg'
+import minimaxLogo from '../assets/minimax.svg'
+import ollamaLogo from '../assets/ollama.svg'
+import openaiLogo from '../assets/openai.svg'
+import qwenLogo from '../assets/qwen.svg'
+import xiaomiLogo from '../assets/xiaomi.svg'
+import zhipuLogo from '../assets/zhipu.svg'
 
 export type AiProviderBrandTone = 'primary' | 'success' | 'warning' | 'danger' | 'purple' | 'default'
 
@@ -9,6 +21,10 @@ export interface AiProviderBrand {
   mark: string
   description: string
   tone: AiProviderBrandTone
+  bg: string
+  text: string
+  logoClass: string
+  logoSrc: string
   baseUrl: string
   protocolType: string
   models: string[]
@@ -23,6 +39,10 @@ export const aiProviderBrands: AiProviderBrand[] = [
     mark: 'AI',
     description: 'GPT-4o, GPT-4 Turbo 等模型',
     tone: 'success',
+    bg: '#e3f5f0',
+    text: '#10a37f',
+    logoClass: 'provider-logo-openai',
+    logoSrc: openaiLogo,
     baseUrl: 'https://api.openai.com/v1',
     protocolType: 'OPENAI_COMPATIBLE_CHAT',
     models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo'],
@@ -35,6 +55,10 @@ export const aiProviderBrands: AiProviderBrand[] = [
     mark: 'A',
     description: 'Claude 系列模型',
     tone: 'default',
+    bg: '#f5ede8',
+    text: '#c05f36',
+    logoClass: 'provider-logo-anthropic',
+    logoSrc: anthropicLogo,
     baseUrl: 'https://api.anthropic.com',
     protocolType: 'OPENAI_COMPATIBLE_CHAT',
     models: ['claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'],
@@ -47,6 +71,10 @@ export const aiProviderBrands: AiProviderBrand[] = [
     mark: 'G',
     description: 'Gemini Pro, Gemini Flash 等模型',
     tone: 'primary',
+    bg: '#f8fafc',
+    text: '#64748b',
+    logoClass: 'provider-logo-google',
+    logoSrc: googleLogo,
     baseUrl: 'https://generativelanguage.googleapis.com/v1',
     protocolType: 'OPENAI_COMPATIBLE_CHAT',
     models: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.0-pro'],
@@ -59,6 +87,10 @@ export const aiProviderBrands: AiProviderBrand[] = [
     mark: 'D',
     description: 'DeepSeek Chat, Coder, Reasoner',
     tone: 'primary',
+    bg: '#eef2ff',
+    text: '#1c3ef0',
+    logoClass: 'provider-logo-deepseek',
+    logoSrc: deepseekLogo,
     baseUrl: 'https://api.deepseek.com/v1',
     protocolType: 'OPENAI_COMPATIBLE_CHAT',
     models: ['deepseek-chat', 'deepseek-coder', 'deepseek-reasoner'],
@@ -71,6 +103,10 @@ export const aiProviderBrands: AiProviderBrand[] = [
     mark: 'Q',
     description: '通义千问 Qwen 系列模型',
     tone: 'warning',
+    bg: '#fff7ed',
+    text: '#fb923c',
+    logoClass: 'provider-logo-qwen',
+    logoSrc: qwenLogo,
     baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
     protocolType: 'OPENAI_COMPATIBLE_CHAT',
     models: ['qwen-max', 'qwen-plus', 'qwen-turbo'],
@@ -83,6 +119,10 @@ export const aiProviderBrands: AiProviderBrand[] = [
     mark: 'Az',
     description: 'Azure 托管的 OpenAI 模型',
     tone: 'primary',
+    bg: '#f8fafc',
+    text: '#93c5fd',
+    logoClass: 'provider-logo-azure',
+    logoSrc: azureLogo,
     baseUrl: 'https://{resource}.openai.azure.com',
     protocolType: 'AZURE_OPENAI',
     models: ['gpt-4o', 'gpt-4-turbo', 'gpt-35-turbo'],
@@ -95,6 +135,10 @@ export const aiProviderBrands: AiProviderBrand[] = [
     mark: 'Mi',
     description: 'MiMo 推理模型',
     tone: 'warning',
+    bg: '#f8fafc',
+    text: '#94a3b8',
+    logoClass: 'provider-logo-xiaomi',
+    logoSrc: xiaomiLogo,
     baseUrl: 'https://api.mimo.xiaomi.com/v1',
     protocolType: 'OPENAI_COMPATIBLE_CHAT',
     models: ['mimo-7b', 'mimo-7b-rl'],
@@ -107,6 +151,10 @@ export const aiProviderBrands: AiProviderBrand[] = [
     mark: 'Z',
     description: 'GLM 系列模型',
     tone: 'purple',
+    bg: '#f8fafc',
+    text: '#94a3b8',
+    logoClass: 'provider-logo-zhipu',
+    logoSrc: zhipuLogo,
     baseUrl: 'https://open.bigmodel.cn/api/paas/v4',
     protocolType: 'OPENAI_COMPATIBLE_CHAT',
     models: ['glm-4', 'glm-4-flash', 'glm-4-air'],
@@ -119,6 +167,10 @@ export const aiProviderBrands: AiProviderBrand[] = [
     mark: 'K',
     description: 'Moonshot 长文本模型',
     tone: 'default',
+    bg: '#f8fafc',
+    text: '#94a3b8',
+    logoClass: 'provider-logo-kimi',
+    logoSrc: kimiLogo,
     baseUrl: 'https://api.moonshot.cn/v1',
     protocolType: 'OPENAI_COMPATIBLE_CHAT',
     models: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
@@ -131,6 +183,10 @@ export const aiProviderBrands: AiProviderBrand[] = [
     mark: 'M',
     description: 'MiniMax Text 与 abab 系列',
     tone: 'danger',
+    bg: '#f8fafc',
+    text: '#94a3b8',
+    logoClass: 'provider-logo-minimax',
+    logoSrc: minimaxLogo,
     baseUrl: 'https://api.minimax.chat/v1',
     protocolType: 'OPENAI_COMPATIBLE_CHAT',
     models: ['abab6.5s-chat', 'abab6.5-chat', 'abab5.5-chat'],
@@ -143,6 +199,10 @@ export const aiProviderBrands: AiProviderBrand[] = [
     mark: 'O',
     description: '本地运行的开源大模型',
     tone: 'default',
+    bg: '#f8fafc',
+    text: '#94a3b8',
+    logoClass: 'provider-logo-ollama',
+    logoSrc: ollamaLogo,
     baseUrl: 'http://localhost:11434/v1',
     protocolType: 'OPENAI_COMPATIBLE_CHAT',
     models: ['llama3', 'mistral', 'codellama', 'qwen2'],
@@ -155,6 +215,10 @@ export const aiProviderBrands: AiProviderBrand[] = [
     mark: '*',
     description: '兼容 OpenAI API 规范的模型服务',
     tone: 'default',
+    bg: '#f8fafc',
+    text: '#94a3b8',
+    logoClass: 'provider-logo-custom',
+    logoSrc: customLogo,
     baseUrl: 'https://your-api-endpoint/v1',
     protocolType: 'OPENAI_COMPATIBLE_CHAT',
     models: [],

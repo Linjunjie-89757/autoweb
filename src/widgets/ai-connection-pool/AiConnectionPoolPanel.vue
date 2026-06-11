@@ -23,7 +23,6 @@ import { getRequestErrorMessage } from '@/shared/api/error'
 import AppButton from '@/shared/ui/app-button/AppButton.vue'
 import AppEmptyState from '@/shared/ui/app-empty-state/AppEmptyState.vue'
 import AppLoadingState from '@/shared/ui/app-loading-state/AppLoadingState.vue'
-import AppProviderBadge from '@/shared/ui/app-provider-badge/AppProviderBadge.vue'
 import AppStatusBadge from '@/shared/ui/app-status-badge/AppStatusBadge.vue'
 import { AiConnectionModelsDrawer } from '@/widgets/ai-connection-models-drawer'
 
@@ -234,10 +233,18 @@ onMounted(() => {
     <section v-else class="ai-connection-card-grid" v-loading="loading">
       <article v-for="provider in providerCardItems" :key="provider.id" class="ai-connection-card">
         <div
-          class="ai-connection-brand"
-          :class="`ai-connection-brand--${getProviderBrand(provider).tone}`"
+          class="ai-provider-logo"
+          :class="[
+            getProviderBrand(provider).logoClass,
+            { 'has-logo-image': getProviderBrand(provider).logoSrc, 'is-custom': getProviderBrand(provider).id === 'custom' },
+          ]"
           aria-hidden="true"
         >
+          <img
+            v-if="getProviderBrand(provider).id !== 'custom' && getProviderBrand(provider).logoSrc"
+            :src="getProviderBrand(provider).logoSrc"
+            :alt="getProviderBrand(provider).name"
+          >
           <span>{{ getProviderBrand(provider).id === 'custom' ? getAiProviderBrandInitial(provider) : getProviderBrand(provider).mark }}</span>
         </div>
 
@@ -251,11 +258,19 @@ onMounted(() => {
           </div>
 
           <div class="ai-connection-card__tags">
-            <AppProviderBadge
-              :label="getProviderBrand(provider).shortName"
-              :tone="getProviderBrand(provider).tone"
-            />
+            <span
+              class="ai-provider-chip"
+              :style="{ backgroundColor: getProviderBrand(provider).bg, color: getProviderBrand(provider).text }"
+            >
+              {{ getProviderBrand(provider).shortName }}
+            </span>
             <span class="ai-connection-model-chip">{{ provider.modelName || '-' }}</span>
+          </div>
+
+          <div class="ai-connection-url">{{ getAiProviderEndpointSummary(provider.baseUrl) }}</div>
+          <div class="ai-connection-date">
+            <span>{{ getAiProviderProtocolLabel(provider.protocolType) }}</span>
+            <span>最近验证 {{ formatAiProviderDate(provider.lastVerifiedAt) }}</span>
           </div>
 
           <dl class="ai-connection-meta">
@@ -343,7 +358,12 @@ onMounted(() => {
             { 'has-connection': providerHasBrandConnection(brand.id) },
           ]"
         >
-          <div class="ai-connection-brand ai-connection-brand--small" :class="`ai-connection-brand--${brand.tone}`">
+          <div
+            class="ai-provider-logo ai-provider-logo--small"
+            :class="[brand.logoClass, { 'has-logo-image': brand.logoSrc, 'is-custom': brand.id === 'custom' }]"
+            aria-hidden="true"
+          >
+            <img v-if="brand.id !== 'custom' && brand.logoSrc" :src="brand.logoSrc" :alt="brand.name">
             <span>{{ brand.mark }}</span>
           </div>
           <span>{{ brand.shortName }}</span>
@@ -373,7 +393,7 @@ onMounted(() => {
 .ai-connection-pool {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-5);
+  gap: var(--app-space-6);
 }
 
 .settings-panel-header {
@@ -408,50 +428,42 @@ onMounted(() => {
 .settings-stat-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--app-space-3);
+  gap: var(--app-space-4);
 }
 
 .settings-stat {
-  position: relative;
   display: flex;
   min-width: 0;
-  min-height: 92px;
+  min-height: 86px;
   flex-direction: column;
   gap: var(--app-space-1);
   justify-content: space-between;
-  overflow: hidden;
-  padding: var(--app-space-4);
+  padding: 17px var(--app-space-5);
   border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
+  border-radius: var(--app-radius-xl);
   background: var(--app-bg-panel);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
-}
-
-.settings-stat::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 3px;
-  background: var(--app-primary);
-  content: "";
+  transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .settings-stat:hover {
   border-color: var(--app-border-strong);
   box-shadow: var(--app-shadow-card);
-  transform: translateY(-1px);
 }
 
-.settings-stat--tone-1::before {
-  background: var(--app-success);
+.settings-stat--tone-0 strong {
+  color: var(--app-primary);
 }
 
-.settings-stat--tone-2::before {
-  background: var(--app-danger);
+.settings-stat--tone-1 strong {
+  color: var(--app-success);
 }
 
-.settings-stat--tone-3::before {
-  background: var(--app-purple);
+.settings-stat--tone-2 strong {
+  color: var(--app-danger);
+}
+
+.settings-stat--tone-3 strong {
+  color: var(--app-purple);
 }
 
 .settings-stat span {
@@ -462,9 +474,8 @@ onMounted(() => {
 }
 
 .settings-stat strong {
-  color: var(--app-text-primary);
-  font-size: var(--app-font-size-page-title);
-  line-height: 28px;
+  font-size: 28px;
+  line-height: 1.1;
 }
 
 .settings-inline-error {
@@ -483,40 +494,44 @@ onMounted(() => {
 .ai-connection-card-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--app-space-3);
+  gap: 13px;
 }
 
 .ai-connection-card {
   position: relative;
-  display: grid;
+  display: flex;
   min-width: 0;
-  min-height: 148px;
-  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 129px;
+  align-items: flex-start;
   gap: var(--app-space-4);
   padding: var(--app-space-5);
   border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-lg);
+  border-radius: var(--app-radius-xl);
   background: var(--app-bg-panel);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
 }
 
 .ai-connection-card:hover {
   border-color: var(--app-border-strong);
-  box-shadow: var(--app-shadow-card-hover);
-  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+}
+
+.ai-connection-card:hover .ai-connection-actions,
+.ai-connection-card:focus-within .ai-connection-actions {
+  opacity: 1;
 }
 
 .ai-connection-card__main {
   min-width: 0;
+  flex: 1;
 }
 
 .ai-connection-card__title-row {
   display: flex;
   min-width: 0;
   align-items: center;
-  justify-content: space-between;
   gap: var(--app-space-2);
+  flex-wrap: wrap;
 }
 
 .ai-connection-card__title-row h3 {
@@ -539,112 +554,177 @@ onMounted(() => {
   margin-top: var(--app-space-2);
 }
 
+.ai-provider-chip {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: var(--app-font-size-xs);
+  font-weight: 600;
+  line-height: 16px;
+}
+
 .ai-connection-model-chip {
   display: inline-flex;
   max-width: 220px;
-  min-height: 26px;
+  min-height: 22px;
   align-items: center;
   overflow: hidden;
-  padding: 0 var(--app-space-2);
-  border: 1px solid var(--app-border-soft);
+  padding: 3px 9px;
+  border: 0;
   border-radius: 999px;
-  background: var(--app-bg-subtle);
+  background: var(--app-bg-muted);
   color: var(--app-text-secondary);
+  font-size: var(--app-font-size-xs);
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-connection-url {
+  max-width: 520px;
+  margin-top: 10px;
+  overflow: hidden;
+  color: var(--app-text-muted);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-size: var(--app-font-size-xs);
   line-height: var(--app-line-height-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.ai-connection-meta {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--app-space-2) var(--app-space-4);
-  margin: var(--app-space-3) 0 0;
-}
-
-.ai-connection-meta div {
-  min-width: 0;
-}
-
-.ai-connection-meta dt {
+.ai-connection-date {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--app-space-2);
+  margin-top: 6px;
   color: var(--app-text-subtle);
   font-size: var(--app-font-size-xs);
   line-height: var(--app-line-height-xs);
 }
 
-.ai-connection-meta dd {
-  min-width: 0;
-  margin: 2px 0 0;
-  overflow: hidden;
-  color: var(--app-text-secondary);
-  font-size: var(--app-font-size-xs);
-  line-height: var(--app-line-height-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.ai-connection-meta {
+  display: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--app-space-2) var(--app-space-4);
+  margin: var(--app-space-3) 0 0;
 }
 
-.ai-connection-brand {
+.ai-provider-logo {
   display: inline-flex;
   width: 48px;
   height: 48px;
   flex: 0 0 48px;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--app-border);
+  overflow: hidden;
+  border: 0;
   border-radius: 14px;
   background: var(--app-bg-muted);
-  color: var(--app-text-secondary);
-  font-size: var(--app-font-size-lg);
+  color: #fff;
+  font-size: 20px;
   font-weight: 800;
   line-height: 1;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.12);
 }
 
-.ai-connection-brand--small {
+.ai-provider-logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ai-provider-logo img + span {
+  display: none;
+}
+
+.ai-provider-logo.has-logo-image {
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+}
+
+.ai-provider-logo.is-custom {
+  border: 1px solid var(--app-border);
+  background: var(--app-bg-muted);
+  color: var(--app-text-subtle);
+  box-shadow: none;
+}
+
+.ai-provider-logo--small {
   width: 40px;
   height: 40px;
   flex-basis: 40px;
   border-radius: 12px;
-  font-size: var(--app-font-size-sm);
+  font-size: 16px;
 }
 
-.ai-connection-brand--primary {
-  border-color: #bfdbfe;
-  background: var(--app-primary-soft);
-  color: var(--app-primary);
+.provider-logo-openai {
+  background: #000;
 }
 
-.ai-connection-brand--success {
-  border-color: #bbf7d0;
-  background: var(--app-success-soft);
-  color: var(--app-success);
+.provider-logo-anthropic {
+  background: #c68642;
+  font-family: Georgia, serif;
+  font-size: 28px;
 }
 
-.ai-connection-brand--warning {
-  border-color: #fed7aa;
-  background: var(--app-warning-soft);
-  color: var(--app-warning);
+.provider-logo-google {
+  background: #fff;
 }
 
-.ai-connection-brand--danger {
-  border-color: #fecaca;
-  background: var(--app-danger-soft);
-  color: var(--app-danger);
+.provider-logo-deepseek {
+  background: #1c3ef0;
 }
 
-.ai-connection-brand--purple {
-  border-color: #e9d5ff;
-  background: var(--app-purple-soft);
-  color: var(--app-purple);
+.provider-logo-qwen,
+.provider-logo-xiaomi {
+  background: #ffc29b;
+}
+
+.provider-logo-azure {
+  background: #9fc9ea;
+}
+
+.provider-logo-zhipu {
+  background: #c7d2fe;
+}
+
+.provider-logo-kimi {
+  background: #9ca3af;
+}
+
+.provider-logo-kimi.has-logo-image {
+  padding: 9px;
+  background: #000;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.12);
+}
+
+.provider-logo-minimax {
+  background: #f3a6a6;
+}
+
+.provider-logo-ollama {
+  background: #a3a3a3;
+}
+
+.provider-logo-custom {
+  background: #f1f5f9;
+  color: #cbd5e1;
 }
 
 .ai-connection-actions {
   position: absolute;
   right: var(--app-space-4);
-  bottom: var(--app-space-4);
+  top: var(--app-space-4);
   display: flex;
+  align-items: center;
   flex-wrap: nowrap;
   gap: 6px;
+  opacity: 0;
+  transition: opacity 180ms ease;
 }
 
 .ai-connection-actions__button {
@@ -652,23 +732,26 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  gap: 4px;
-  min-width: 44px;
-  min-height: var(--app-control-height-sm);
-  padding: 0 7px;
-  border: 1px solid transparent;
-  border-radius: var(--app-radius-sm);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
   background: transparent;
-  color: var(--app-primary);
+  color: var(--app-text-subtle);
   cursor: pointer;
   font-size: var(--app-font-size-xs);
   line-height: var(--app-line-height-xs);
-  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+  transition: background-color 180ms ease, color 180ms ease, opacity 180ms ease;
+}
+
+.ai-connection-actions__button span {
+  display: none;
 }
 
 .ai-connection-actions__button:hover:not(:disabled) {
-  border-color: var(--app-primary);
   background: var(--app-primary-soft);
+  color: var(--app-primary);
 }
 
 .ai-connection-actions__button:focus-visible {
@@ -681,8 +764,8 @@ onMounted(() => {
 }
 
 .ai-connection-actions__button.is-danger:hover:not(:disabled) {
-  border-color: var(--app-danger);
   background: var(--app-danger-soft);
+  color: var(--app-danger);
 }
 
 .ai-connection-actions__button:disabled {
@@ -698,12 +781,14 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-3);
+  margin-top: 7px;
 }
 
 .supported-providers h3 {
   margin: 0;
-  color: var(--app-text-primary);
-  font-size: var(--app-font-size-md);
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-sm);
+  font-weight: 600;
   line-height: var(--app-line-height-md);
 }
 
@@ -717,24 +802,24 @@ onMounted(() => {
   position: relative;
   display: flex;
   min-width: 0;
-  min-height: 104px;
+  min-height: 103px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: var(--app-space-2);
   padding: var(--app-space-3);
   border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-lg);
-  background: var(--app-bg-panel);
-  color: var(--app-text-muted);
+  border-radius: 14px;
+  background: var(--app-bg-page);
+  color: var(--app-text-subtle);
   font-size: var(--app-font-size-xs);
   line-height: var(--app-line-height-xs);
   text-align: center;
   transition: border-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
 }
 
-.supported-provider-card:not(.has-connection) .ai-connection-brand {
-  opacity: 0.42;
+.supported-provider-card:not(.has-connection) .ai-provider-logo {
+  opacity: 0.35;
 }
 
 .supported-provider-card.has-connection {
@@ -745,14 +830,10 @@ onMounted(() => {
 }
 
 .supported-provider-card.has-connection i {
-  position: absolute;
-  bottom: var(--app-space-3);
-  left: 50%;
   width: 6px;
   height: 6px;
   border-radius: 999px;
   background: var(--app-success);
-  transform: translateX(-50%);
 }
 
 @keyframes ai-connection-spin {

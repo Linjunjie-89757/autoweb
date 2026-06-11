@@ -64,27 +64,33 @@ const placeholderMeta = computed(() => {
   min-height: 0;
   flex: 1;
   align-items: stretch;
-  gap: var(--app-space-5);
+  overflow: hidden;
+  background: var(--app-bg-page);
 }
 
 .system-settings-page__content {
   min-width: 0;
   flex: 1;
   min-height: 0;
-  padding: var(--app-space-5);
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-lg);
-  background: var(--app-bg-panel);
-  box-shadow: var(--app-shadow-card);
+  overflow-y: auto;
+  padding: 28px 32px;
+  background: var(--app-bg-page);
+  scrollbar-width: none;
+}
+
+.system-settings-page__content::-webkit-scrollbar {
+  display: none;
 }
 
 @media (max-width: 900px) {
   .system-settings-page {
     flex-direction: column;
+    overflow: visible;
   }
 
   .system-settings-page__content {
     width: 100%;
+    overflow: visible;
     padding: var(--app-space-4);
   }
 }

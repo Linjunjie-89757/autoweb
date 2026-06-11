@@ -52,28 +52,35 @@ const settingsTabs: Array<{
 .settings-sidebar {
   display: flex;
   align-self: stretch;
+  overflow-y: auto;
   flex-direction: column;
-  gap: var(--app-space-2);
+  gap: 2px;
   width: 224px;
-  padding: var(--app-space-3);
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-lg);
+  flex: 0 0 224px;
+  padding: var(--app-space-4) var(--app-space-3) 0;
+  border-right: 1px solid var(--app-border);
   background: var(--app-bg-panel);
+  scrollbar-width: none;
+}
+
+.settings-sidebar::-webkit-scrollbar {
+  display: none;
 }
 
 .settings-sidebar__item {
   display: flex;
   width: 100%;
-  align-items: flex-start;
+  min-height: 56px;
+  align-items: center;
   gap: var(--app-space-3);
-  padding: var(--app-space-3);
-  border: 0;
-  border-radius: var(--app-radius-md);
+  padding: 10px var(--app-space-3);
+  border: 1px solid transparent;
+  border-radius: var(--app-radius-lg);
   background: transparent;
   color: var(--app-text-secondary);
   cursor: pointer;
   text-align: left;
-  transition: background-color 160ms ease, color 160ms ease;
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, box-shadow 180ms ease;
 }
 
 .settings-sidebar__item:hover {
@@ -82,14 +89,20 @@ const settingsTabs: Array<{
 }
 
 .settings-sidebar__item.is-active {
+  border-color: transparent;
   background: var(--app-primary-soft);
   color: var(--app-primary);
+  box-shadow: none;
 }
 
 .settings-sidebar__icon {
   flex: 0 0 auto;
-  margin-top: 1px;
   font-size: 17px;
+  color: var(--app-text-subtle);
+}
+
+.settings-sidebar__item.is-active .settings-sidebar__icon {
+  color: var(--app-primary);
 }
 
 .settings-sidebar__text {
@@ -98,16 +111,23 @@ const settingsTabs: Array<{
 
 .settings-sidebar strong {
   display: block;
+  overflow: hidden;
   font-size: var(--app-font-size-md);
+  font-weight: 500;
   line-height: var(--app-line-height-md);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings-sidebar small {
   display: block;
+  overflow: hidden;
   margin-top: 2px;
-  color: var(--app-text-muted);
+  color: var(--app-text-subtle);
   font-size: var(--app-font-size-xs);
   line-height: var(--app-line-height-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings-sidebar__item.is-active small {
@@ -117,6 +137,10 @@ const settingsTabs: Array<{
 @media (max-width: 900px) {
   .settings-sidebar {
     width: 100%;
+    flex-basis: auto;
+    padding: var(--app-space-3);
+    border-right: 0;
+    border-bottom: 1px solid var(--app-border);
   }
 }
 </style>

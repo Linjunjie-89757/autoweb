@@ -1,4 +1,4 @@
-import { defectApi, type DefectSummaryItem, type TransitionDefectPayload } from '@/entities/defect'
+import { defectApi, defectStatusOptions, type DefectSummaryItem, type TransitionDefectPayload } from '@/entities/defect'
 
 export interface DefectTransitionForm {
   toStatus: string
@@ -6,8 +6,11 @@ export interface DefectTransitionForm {
 }
 
 export function createDefaultTransitionForm(item?: DefectSummaryItem | null): DefectTransitionForm {
+  const currentStatus = item?.status
+  const firstTargetStatus = defectStatusOptions.find((option) => option.value !== currentStatus)?.value || 'IN_PROGRESS'
+
   return {
-    toStatus: item?.status === 'CLOSED' ? 'IN_PROGRESS' : 'IN_PROGRESS',
+    toStatus: firstTargetStatus,
     actionComment: '',
   }
 }

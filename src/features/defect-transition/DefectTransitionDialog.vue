@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 
 import { defectStatusOptions, type DefectSummaryItem, type TransitionDefectPayload } from '@/entities/defect'
 import AppButton from '@/shared/ui/app-button/AppButton.vue'
@@ -34,6 +34,9 @@ const form = reactive<DefectTransitionForm>(createDefaultTransitionForm())
 const formError = reactive({
   message: '',
 })
+const targetStatusOptions = computed(() =>
+  defectStatusOptions.filter((item) => item.value !== props.defectItem?.status),
+)
 
 function resetForm() {
   Object.assign(form, createDefaultTransitionForm(props.defectItem))
@@ -87,7 +90,7 @@ watch(
         <span>目标状态 *</span>
         <div class="defect-transition-dialog__segment">
           <button
-            v-for="item in defectStatusOptions"
+            v-for="item in targetStatusOptions"
             :key="item.value"
             type="button"
             :class="{ 'is-active': form.toStatus === item.value }"

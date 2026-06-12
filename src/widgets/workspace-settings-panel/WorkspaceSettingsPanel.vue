@@ -131,10 +131,10 @@ const userRoleOptions = computed(() => Array.from(new Set(users.value.map((user)
   label: getUserRoleLabel(roleCode),
   value: roleCode,
 })))
-const userStatusOptions = computed(() => Array.from(new Set(users.value.map((user) => String(Number(user.status))).filter((status) => status === '0' || status === '1'))).map((status) => ({
-  label: getUserStatusMeta(status).label,
-  value: status,
-})))
+const userStatusOptions = [
+  { label: getUserStatusMeta(1).label, value: '1' },
+  { label: getUserStatusMeta(0).label, value: '0' },
+]
 const userWorkspaceOptions = computed(() => businessWorkspaces.value.map((workspace) => ({
   label: workspaceDisplayName(workspace),
   value: workspaceDisplayCode(workspace),

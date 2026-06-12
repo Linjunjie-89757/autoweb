@@ -42,7 +42,7 @@ interface UserEditForm {
   displayName: string
   roleCode: string
   status: number
-  workspaceCodesText: string
+  workspaceCodes: string[]
 }
 
 const props = withDefaults(
@@ -83,7 +83,7 @@ const userForm = ref<UserEditForm>({
   displayName: '',
   roleCode: 'MEMBER',
   status: 1,
-  workspaceCodesText: '',
+  workspaceCodes: [],
 })
 
 const businessWorkspaces = computed(() => workspaces.value.filter((item) => !item.allScope && item.workspaceCode !== 'ALL'))
@@ -246,11 +246,8 @@ function isUserMutating(userId: number) {
   return mutatingUserIds.value.has(userId)
 }
 
-function parseWorkspaceCodes(value: string) {
-  return Array.from(new Set(value
-    .split(/[\n,，\s]+/)
-    .map((item) => item.trim())
-    .filter(Boolean)))
+function normalizeWorkspaceCodes(value: string[]) {
+  return Array.from(new Set(value.filter(Boolean)))
 }
 
 function buildUserUpdatePayload(user: UserItem, overrides: Partial<UpdateUserPayload> = {}): UpdateUserPayload {
@@ -276,7 +273,7 @@ function openUserEdit(row: UserItem) {
     displayName: getUserDisplayName(row) === '-' ? '' : getUserDisplayName(row),
     roleCode: row.roleCode || 'MEMBER',
     status: Number(row.status) === 0 ? 0 : 1,
-    workspaceCodesText: (row.workspaceCodes ?? []).join(', '),
+    workspaceCodes: row.workspaceCodes ?? [],
   }
   userDialogVisible.value = true
 }
@@ -306,7 +303,7 @@ async function submitUserEdit() {
       displayName: userForm.value.displayName.trim(),
       roleCode: userForm.value.roleCode,
       status: userForm.value.status,
-      workspaceCodes: parseWorkspaceCodes(userForm.value.workspaceCodesText),
+      workspaceCodes: normalizeWorkspaceCodes(userForm.value.workspaceCodes),
     }))
     ElMessage.success('用户信息已更新')
     userDialogVisible.value = false
@@ -1010,12 +1007,30 @@ watch(memberWorkspaceCode, () => {
         </label>
         <label class="user-edit-dialog__field is-full">
           <span>可访问空间</span>
-          <el-input
-            v-model="userForm.workspaceCodesText"
-            type="textarea"
-            :rows="3"
-            placeholder="多个空间编码可用逗号、空格或换行分隔"
-          />
+          <el-select
+            v-model="userForm.workspaceCodes"
+            class="user-edit-dialog__workspace-select"
+            multiple
+            filterable
+            collapse-tags
+            collapse-tags-tooltip
+            popper-class="user-edit-workspace-dropdown"
+            :disabled="businessWorkspaces.length === 0"
+            placeholder="选择可访问工作空间"
+          >
+            <el-option
+              v-for="workspace in businessWorkspaces"
+              :key="workspace.workspaceCode"
+              :label="workspaceDisplayName(workspace)"
+              :value="workspace.workspaceCode"
+            >
+              <span>{{ workspaceDisplayName(workspace) }}</span>
+              <small>{{ workspaceDisplayCode(workspace) }}</small>
+            </el-option>
+          </el-select>
+          <p class="user-edit-dialog__hint">
+            {{ businessWorkspaces.length ? '未选择时表示不授予具体业务空间。' : '暂无可选择的业务工作空间。' }}
+          </p>
         </label>
       </div>
 
@@ -1727,6 +1742,34 @@ watch(memberWorkspaceCode, () => {
 .user-edit-dialog__select:focus {
   border-color: var(--app-primary);
   box-shadow: 0 0 0 3px var(--app-primary-soft);
+}
+
+.user-edit-dialog__workspace-select {
+  width: 100%;
+}
+
+.user-edit-dialog__workspace-select :deep(.el-select__wrapper) {
+  min-height: var(--app-control-height-md);
+  border-radius: var(--app-radius-md);
+}
+
+:deep(.user-edit-workspace-dropdown .el-select-dropdown__item) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+:deep(.user-edit-workspace-dropdown small) {
+  color: var(--app-text-muted);
+  font-size: 12px;
+}
+
+.user-edit-dialog__hint {
+  margin: -2px 0 0;
+  color: var(--app-text-muted);
+  font-size: var(--app-font-size-xs);
+  line-height: 1.45;
 }
 
 .workspace-member-select {

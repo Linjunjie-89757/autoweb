@@ -175,6 +175,21 @@ function getWorkspaceStatusMeta(status?: number | string | null) {
   return { label: '启用', tone: 'success' as const }
 }
 
+function getUserRoleClass(roleCode?: string | null) {
+  const normalizedRole = String(roleCode || '').toUpperCase()
+  if (normalizedRole.includes('SUPER') || normalizedRole.includes('ADMIN')) {
+    return 'is-admin'
+  }
+  if (normalizedRole.includes('MEMBER')) {
+    return 'is-member'
+  }
+  return 'is-viewer'
+}
+
+function getUserStatusClass(status?: number | string | null) {
+  return Number(status) === 1 ? '' : 'is-disabled'
+}
+
 function formatDateTime(value?: string | null) {
   return value ? value.replace('T', ' ').slice(0, 16) : '-'
 }
@@ -695,7 +710,7 @@ watch(memberWorkspaceCode, () => {
           <p>调整筛选条件后再查看用户账号。</p>
         </div>
 
-        <el-table v-else v-loading="userLoading" :data="filteredUsers" class="settings-table" row-key="id">
+        <el-table v-else v-loading="userLoading" :data="filteredUsers" class="settings-table settings-table--users" row-key="id">
         <el-table-column label="姓名" min-width="140" show-overflow-tooltip>
           <template #default="{ row }: { row: UserItem }">
             <div class="team-member-cell">
@@ -711,20 +726,30 @@ watch(memberWorkspaceCode, () => {
         <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip />
         <el-table-column label="角色" min-width="120">
           <template #default="{ row }: { row: UserItem }">
-            {{ getUserRoleLabel(row.roleCode) }}
+            <span class="team-role-badge" :class="getUserRoleClass(row.roleCode)">
+              {{ getUserRoleLabel(row.roleCode) }}
+            </span>
           </template>
         </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }: { row: UserItem }">
-            <AppStatusBadge
-              :label="getUserStatusMeta(row.status).label"
-              :tone="getUserStatusMeta(row.status).tone"
-            />
+            <span class="team-status-badge" :class="getUserStatusClass(row.status)">
+              {{ getUserStatusMeta(row.status).label }}
+            </span>
           </template>
         </el-table-column>
         <el-table-column label="所属空间" min-width="180" show-overflow-tooltip>
           <template #default="{ row }: { row: UserItem }">
-            {{ formatUserWorkspaceNames(row.workspaceNames) }}
+            <span class="team-workspace-text">{{ formatUserWorkspaceNames(row.workspaceNames) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="184" fixed="right">
+          <template #default>
+            <div class="team-row-actions">
+              <button type="button" disabled title="用户详情暂未接入">查看</button>
+              <button type="button" disabled title="用户编辑暂未接入">编辑</button>
+              <button type="button" disabled title="密码重置暂未接入">重置密码</button>
+            </div>
           </template>
         </el-table-column>
         </el-table>
@@ -948,7 +973,7 @@ watch(memberWorkspaceCode, () => {
 .settings-table {
   width: 100%;
   border: 1px solid var(--app-border-soft);
-  border-radius: 12px;
+  border-radius: 16px;
   overflow: hidden;
 }
 
@@ -957,10 +982,34 @@ watch(memberWorkspaceCode, () => {
   background: var(--app-bg-muted);
   color: var(--app-text-secondary);
   font-size: 12px;
+  font-weight: 600;
+}
+
+.settings-table :deep(.el-table__header th .cell) {
+  line-height: 1.35;
+  white-space: nowrap;
 }
 
 .settings-table :deep(.el-table__row) {
-  height: 58px;
+  height: 56px;
+}
+
+.settings-table :deep(.el-table__row:hover > td.el-table__cell) {
+  background: var(--app-bg-subtle);
+}
+
+.settings-table :deep(.el-table__cell) {
+  padding: 12px 0;
+  color: var(--app-text-primary);
+  font-size: 14px;
+}
+
+.settings-table :deep(.el-table__cell .cell) {
+  line-height: 1.35;
+}
+
+.settings-table--users :deep(.el-table__fixed-right) {
+  box-shadow: -8px 0 16px rgb(15 23 42 / 0.04);
 }
 
 .settings-panel-block--members :deep(.app-empty-state),
@@ -1277,6 +1326,55 @@ watch(memberWorkspaceCode, () => {
   font-weight: 700;
 }
 
+.team-role-badge,
+.team-status-badge {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.team-role-badge.is-admin {
+  background: var(--app-purple-soft);
+  color: var(--app-purple);
+}
+
+.team-role-badge.is-member {
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+}
+
+.team-role-badge.is-viewer {
+  background: var(--app-bg-muted);
+  color: var(--app-text-secondary);
+}
+
+.team-status-badge {
+  background: var(--app-success-soft);
+  color: var(--app-success);
+}
+
+.team-status-badge.is-disabled {
+  background: var(--app-bg-muted);
+  color: var(--app-text-muted);
+}
+
+.team-workspace-text {
+  display: inline-block;
+  max-width: 260px;
+  overflow: hidden;
+  color: var(--app-text-primary);
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 .team-member-cell strong {
   display: block;
   overflow: hidden;
@@ -1296,6 +1394,34 @@ watch(memberWorkspaceCode, () => {
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.team-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.team-row-actions button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--app-primary);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1.35;
+  transition: color 160ms ease;
+}
+
+.team-row-actions button:hover:not(:disabled) {
+  color: var(--app-primary-hover);
+}
+
+.team-row-actions button:disabled {
+  color: var(--app-text-muted);
+  cursor: not-allowed;
+  opacity: 0.56;
 }
 
 .workspace-member-select {

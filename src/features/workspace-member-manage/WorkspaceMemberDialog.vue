@@ -71,10 +71,6 @@ function getUserOptionLabel(user: UserItem) {
   return user.displayName || user.username || `用户 ${user.id}`
 }
 
-function getUserOptionMeta(user: UserItem) {
-  return [user.username, user.email].filter(Boolean).join(' / ')
-}
-
 watch(
   () => props.modelValue,
   (visible) => {
@@ -118,12 +114,7 @@ watch(
             :key="user.id"
             :label="getUserOptionLabel(user)"
             :value="user.id"
-          >
-            <div class="workspace-member-dialog__option">
-              <strong>{{ getUserOptionLabel(user) }}</strong>
-              <small>{{ getUserOptionMeta(user) }}</small>
-            </div>
-          </el-option>
+          />
         </el-select>
       </label>
 
@@ -196,30 +187,6 @@ watch(
   border-color: var(--app-primary);
   background: var(--app-primary);
   color: var(--app-text-inverse);
-}
-
-.workspace-member-dialog__option {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  line-height: 1.35;
-}
-
-.workspace-member-dialog__option strong {
-  overflow: hidden;
-  color: var(--app-text-primary);
-  font-size: var(--app-font-size-md);
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.workspace-member-dialog__option small {
-  overflow: hidden;
-  color: var(--app-text-muted);
-  font-size: var(--app-font-size-xs);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .workspace-member-dialog__error {

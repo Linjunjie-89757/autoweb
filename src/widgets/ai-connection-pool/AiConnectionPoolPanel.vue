@@ -444,7 +444,7 @@ onMounted(() => {
 .settings-stat-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--app-space-4);
+  gap: 16px;
 }
 
 .settings-stat {
@@ -455,14 +455,8 @@ onMounted(() => {
   gap: 8px;
   padding: 16px 20px;
   border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-xl);
+  border-radius: 16px;
   background: var(--app-bg-panel);
-  transition: border-color 180ms ease, box-shadow 180ms ease;
-}
-
-.settings-stat:hover {
-  border-color: var(--app-border-strong);
-  box-shadow: var(--app-shadow-card);
 }
 
 .settings-stat--tone-0 strong {
@@ -488,6 +482,7 @@ onMounted(() => {
 }
 
 .settings-stat strong {
+  color: var(--app-text-primary);
   font-size: 24px;
   font-weight: 700;
   line-height: 1.2;
@@ -945,8 +940,7 @@ onMounted(() => {
     transition: none;
   }
 
-  .ai-connection-card:hover,
-  .settings-stat:hover {
+  .ai-connection-card:hover {
     transform: none;
   }
 }

@@ -43,11 +43,6 @@ export function createDefaultAiConnectionForm(workspaceCode = 'ALL'): AiConnecti
   }
 }
 
-function buildSavedApiKeyMask(item: AiProviderConnectionItem) {
-  const maskLength = item.apiKeyMasked?.length || 16
-  return 'x'.repeat(maskLength)
-}
-
 export function createAiConnectionFormFromItem(item: AiProviderConnectionItem): AiConnectionForm {
   return {
     workspaceCode: item.workspaceCode || 'ALL',
@@ -56,7 +51,7 @@ export function createAiConnectionFormFromItem(item: AiProviderConnectionItem): 
     baseUrl: item.baseUrl,
     requestTimeoutSeconds: item.requestTimeoutSeconds ?? 180,
     modelName: item.modelName ?? '',
-    apiKey: item.apiKeyConfigured ? buildSavedApiKeyMask(item) : '',
+    apiKey: item.apiKeyConfigured ? item.apiKeyMasked || '' : '',
     usingSavedApiKey: item.apiKeyConfigured,
     status: item.status,
   }
@@ -76,7 +71,7 @@ export function buildSaveAiConnectionPayload(
     status: form.status,
   }
 
-  if (options.includeApiKey && !form.usingSavedApiKey) {
+  if (options.includeApiKey && !form.usingSavedApiKey && form.apiKey.trim()) {
     payload.apiKey = form.apiKey.trim() || null
   }
 

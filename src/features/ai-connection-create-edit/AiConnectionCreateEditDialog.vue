@@ -60,7 +60,6 @@ const modelLoading = ref(false)
 const modelError = ref('')
 const providerModels = ref<AiProviderModelItem[]>([])
 const showModelDropdown = ref(false)
-const apiKeySecretLoading = ref(false)
 let modelRequestSeq = 0
 
 const hasSavedProvider = computed(() => Boolean(props.provider))
@@ -93,7 +92,6 @@ function resetForm() {
   Object.assign(form, nextForm)
   formError.value = ''
   apiKeyVisible.value = false
-  apiKeySecretLoading.value = false
   resetDialogFeedback()
   resetModelState()
 
@@ -143,37 +141,19 @@ function restoreDefaultBaseUrl() {
   form.baseUrl = selectedBrand.value.baseUrl
 }
 
-function handleApiKeyInput() {
+function handleApiKeyInput(value: string | number) {
   if (form.usingSavedApiKey) {
     form.usingSavedApiKey = false
   }
+  if (props.mode === 'edit' && !String(value).trim()) {
+    form.usingSavedApiKey = Boolean(props.provider?.apiKeyConfigured)
+  }
 }
 
-async function toggleApiKeyVisible() {
+function toggleApiKeyVisible() {
   if (!form.apiKey.trim()) {
     return
   }
-
-  if (form.usingSavedApiKey && props.provider) {
-    if (apiKeySecretLoading.value) {
-      return
-    }
-
-    apiKeySecretLoading.value = true
-    formError.value = ''
-    try {
-      const secret = await aiProviderApi.getProviderConnectionSecret(props.defaultWorkspaceCode, props.provider.id)
-      form.apiKey = secret.apiKey
-      form.usingSavedApiKey = false
-      apiKeyVisible.value = true
-    } catch (error) {
-      formError.value = getRequestErrorMessage(error)
-    } finally {
-      apiKeySecretLoading.value = false
-    }
-    return
-  }
-
   apiKeyVisible.value = !apiKeyVisible.value
 }
 
@@ -377,20 +357,19 @@ watch(
             class="is-mono"
             :type="apiKeyVisible ? 'text' : 'password'"
             autocomplete="current-password"
-            placeholder="请输入 API Key"
+            :placeholder="mode === 'edit' ? '留空则继续使用已保存密钥' : '请输入 API Key'"
             @input="handleApiKeyInput"
           >
             <template #suffix>
               <button
                 type="button"
                 class="ai-connection-dialog__password-toggle"
-                :disabled="apiKeySecretLoading || !form.apiKey.trim()"
+                :disabled="!form.apiKey.trim()"
                 :aria-label="apiKeyVisible ? '隐藏 API Key' : '显示 API Key'"
                 @click="toggleApiKeyVisible"
               >
-                <RefreshCw v-if="apiKeySecretLoading" :size="15" class="is-spinning" />
-                <el-icon v-else>
-                  <View v-if="!apiKeySecretLoading && !apiKeyVisible" />
+                <el-icon>
+                  <View v-if="!apiKeyVisible" />
                   <Hide v-else />
                 </el-icon>
               </button>

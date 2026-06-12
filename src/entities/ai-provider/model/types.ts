@@ -56,11 +56,6 @@ export interface AiProviderSyncModelsResult {
   message: string | null
 }
 
-export interface AiProviderConnectionSecret {
-  id: number
-  apiKey: string
-}
-
 export interface UpdateAiProviderStatusPayload extends SaveAiProviderConnectionPayload {
   status: AiProviderStatus
 }

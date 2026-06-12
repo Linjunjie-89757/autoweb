@@ -110,6 +110,7 @@ This file tracks known unverified paths and residual risks during the frontend r
 | Role permissions and settings tabs | Role permissions, notification, security, and appearance remain unified placeholders. | Users cannot configure those areas in the rebuilt frontend yet. | Split only after backend controllers and business scope are confirmed. |
 | Full system settings regression | Goal 78 runs focused smoke rather than a full destructive regression. | Cross-panel interactions and rare 401/500 states may still hide edge cases. | Add mock failure and disposable-data checks before release. |
 | UI parity depth | Goal 79 keeps the current table-based AI connection pool and only tightens density and operation-column stability. | Old-project provider-card pool, supplier grid, and richer settings tabs are still outside this small UI alignment pass. | Revisit after disposable-data regression and confirmed provider UX scope. |
+| Settings tab switch stability | AI connection, workspace, and user management panels currently switch through conditional mounting; each return can re-run mounted data loads and replace loading/empty/content blocks. | Frequent switching may show visible layout jitter from remounting, API reloads, content-height changes, hidden scrollbar changes, and Element Plus table recalculation. | Later evaluate `KeepAlive`/`v-show`, loaded-once guards, stable content min-heights, preserved scroll positions, and table width stabilization. |
 
 ## Interface Automation
 

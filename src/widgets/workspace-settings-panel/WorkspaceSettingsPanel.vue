@@ -1170,10 +1170,6 @@ watch(memberWorkspaceCode, () => {
   gap: 16px;
 }
 
-.workspace-settings-panel.is-workspace-mode .settings-stat-grid {
-  margin-bottom: 28px;
-}
-
 .settings-stat {
   display: flex;
   min-width: 0;

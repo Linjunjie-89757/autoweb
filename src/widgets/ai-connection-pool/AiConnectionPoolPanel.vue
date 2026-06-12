@@ -450,26 +450,28 @@ onMounted(() => {
 .settings-stat {
   display: flex;
   min-width: 0;
-  min-height: 88px;
+  min-height: 86px;
   flex-direction: column;
-  gap: 8px;
-  padding: 16px 20px;
+  padding: 17px 20px;
   border: 1px solid var(--app-border);
   border-radius: 16px;
   background: var(--app-bg-panel);
 }
 
 .settings-stat span {
+  display: block;
+  margin-bottom: 4px;
   color: var(--app-text-muted);
   font-size: var(--app-font-size-xs);
   line-height: 1.35;
 }
 
 .settings-stat strong {
+  display: block;
   color: var(--app-text-primary);
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 700;
-  line-height: 1.2;
+  line-height: 1.1;
 }
 
 .settings-stat--tone-0 strong {

@@ -459,6 +459,19 @@ onMounted(() => {
   background: var(--app-bg-panel);
 }
 
+.settings-stat span {
+  color: var(--app-text-muted);
+  font-size: var(--app-font-size-xs);
+  line-height: 1.35;
+}
+
+.settings-stat strong {
+  color: var(--app-text-primary);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .settings-stat--tone-0 strong {
   color: var(--app-primary);
 }
@@ -473,19 +486,6 @@ onMounted(() => {
 
 .settings-stat--tone-3 strong {
   color: var(--app-purple);
-}
-
-.settings-stat span {
-  color: var(--app-text-muted);
-  font-size: var(--app-font-size-xs);
-  line-height: 1.35;
-}
-
-.settings-stat strong {
-  color: var(--app-text-primary);
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.2;
 }
 
 .settings-inline-error {

@@ -227,7 +227,7 @@ export const aiProviderBrands: AiProviderBrand[] = [
 ]
 
 export function getAiProviderSearchText(provider: AiProviderConnectionItem) {
-  return `${provider.connectionName} ${provider.baseUrl} ${provider.modelName ?? ''}`.toLowerCase()
+  return `${provider.connectionName} ${provider.baseUrl}`.toLowerCase()
 }
 
 function getCustomProviderIntentText(provider: AiProviderConnectionItem) {

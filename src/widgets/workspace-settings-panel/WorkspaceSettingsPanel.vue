@@ -1366,7 +1366,7 @@ watch(memberWorkspaceCode, () => {
   min-height: 100%;
   min-width: 0;
   flex-direction: column;
-  gap: 28px;
+  gap: var(--app-space-6);
 }
 
 .settings-panel-header {

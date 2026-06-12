@@ -16,8 +16,6 @@ import AppButton from '@/shared/ui/app-button/AppButton.vue'
 import AppDialog from '@/shared/ui/app-dialog/AppDialog.vue'
 
 import {
-  aiConnectionProtocolOptions,
-  aiConnectionStatusOptions,
   buildSaveAiConnectionPayload,
   createAiConnectionFormFromItem,
   createDefaultAiConnectionForm,
@@ -415,51 +413,6 @@ watch(
             <span>保存连接后即可从服务端获取模型列表。</span>
           </p>
         </div>
-
-        <details class="ai-connection-dialog__advanced">
-          <summary>高级配置</summary>
-          <label class="ai-connection-dialog__field">
-            <span>目标空间</span>
-            <el-input v-model="form.workspaceCode" placeholder="ALL" />
-          </label>
-
-          <div class="ai-connection-dialog__field">
-            <span>协议类型</span>
-            <div class="ai-connection-dialog__segment">
-              <button
-                v-for="item in aiConnectionProtocolOptions"
-                :key="item.value"
-                type="button"
-                :class="{ 'is-active': form.protocolType === item.value }"
-                @click="form.protocolType = item.value"
-              >
-                {{ item.label }}
-              </button>
-            </div>
-          </div>
-
-          <div class="ai-connection-dialog__grid">
-            <label class="ai-connection-dialog__field">
-              <span>请求超时（秒）</span>
-              <el-input-number v-model="form.requestTimeoutSeconds" :min="10" :max="600" />
-            </label>
-
-            <div class="ai-connection-dialog__field">
-              <span>状态</span>
-              <div class="ai-connection-dialog__segment is-two">
-                <button
-                  v-for="item in aiConnectionStatusOptions"
-                  :key="item.value"
-                  type="button"
-                  :class="{ 'is-active': form.status === item.value }"
-                  @click="form.status = item.value"
-                >
-                  {{ item.label }}
-                </button>
-              </div>
-            </div>
-          </div>
-        </details>
 
         <p v-if="formError" class="ai-connection-dialog__error">{{ formError }}</p>
       </section>
@@ -958,26 +911,6 @@ watch(
   background: transparent;
   color: var(--app-text-subtle);
   cursor: pointer;
-}
-
-.ai-connection-dialog__advanced {
-  display: grid;
-  gap: var(--app-space-4);
-  padding: 10px 12px;
-  border: 1px solid #eef2f7;
-  border-radius: 14px;
-  background: #fbfdff;
-}
-
-.ai-connection-dialog__advanced summary {
-  color: #64748b;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.ai-connection-dialog__advanced[open] summary {
-  margin-bottom: var(--app-space-4);
 }
 
 .ai-connection-dialog__error {

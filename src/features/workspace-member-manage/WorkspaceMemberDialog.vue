@@ -21,10 +21,12 @@ const props = withDefaults(
     modelValue: boolean
     mode: WorkspaceMemberDialogMode
     member?: WorkspaceMemberItem | null
+    initialRole?: string
     saving?: boolean
   }>(),
   {
     member: null,
+    initialRole: 'MEMBER',
   },
 )
 
@@ -41,7 +43,7 @@ function resetForm() {
   const nextForm =
     props.mode === 'edit' && props.member
       ? createWorkspaceMemberFormFromItem(props.member)
-      : createDefaultWorkspaceMemberForm()
+      : { ...createDefaultWorkspaceMemberForm(), roleCode: props.initialRole || 'MEMBER' }
 
   Object.assign(form, nextForm)
   formError.value = ''

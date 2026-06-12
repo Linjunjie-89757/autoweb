@@ -85,6 +85,18 @@ export const workspaceApi = {
     return normalizeWorkspaceItem(response.data)
   },
 
+  async deleteWorkspace(workspaceCode: string) {
+    const response = await httpDelete<ApiResponse<null>>(`/workspaces/${encodeURIComponent(workspaceCode)}`, {
+      headers: workspaceHeaders('ALL'),
+    })
+
+    if (response.success === false) {
+      throw new Error(response.message || '工作空间删除失败')
+    }
+
+    return response.data
+  },
+
   async getWorkspaceMembers(workspaceCode: string) {
     const payload = await httpGet<ApiResponse<WorkspaceMemberItem[]>>(
       `/workspaces/${encodeURIComponent(workspaceCode)}/members`,

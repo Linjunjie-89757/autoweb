@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { Delete, Edit, Plus, RefreshRight } from '@element-plus/icons-vue'
-import { Edit2, Package, Target, User, Users } from '@lucide/vue'
+import { ChevronLeft, Crown, Edit2, Package, Shield, Target, Trash2, User, UserCog, Users } from '@lucide/vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import {
@@ -74,8 +74,10 @@ const workspaceDialogVisible = ref(false)
 const workspaceDialogMode = ref<WorkspaceDialogMode>('create')
 const editingWorkspace = ref<WorkspaceItem | null>(null)
 const memberWorkspaceCode = ref('')
+const managingWorkspaceCode = ref('')
 const memberDialogVisible = ref(false)
 const memberDialogMode = ref<WorkspaceMemberDialogMode>('create')
+const memberCreateRole = ref<'ADMIN' | 'MEMBER'>('MEMBER')
 const editingMember = ref<WorkspaceMemberItem | null>(null)
 const userDialogVisible = ref(false)
 const userDialogMode = ref<UserDialogMode>('edit')
@@ -97,6 +99,7 @@ const memberWorkspaceOptions = computed(() => businessWorkspaces.value.map((item
   label: item.workspaceName || item.workspaceCode,
   value: item.workspaceCode,
 })))
+const managingWorkspace = computed(() => businessWorkspaces.value.find((item) => workspaceDisplayCode(item) === managingWorkspaceCode.value) || null)
 
 const workspaceStats = computed(() => [
   { label: '空间总数', value: businessWorkspaces.value.length },
@@ -156,6 +159,9 @@ const filteredUsers = computed(() => {
     return matchesKeyword && matchesRole && matchesStatus
   })
 })
+const workspaceAdminMembers = computed(() => members.value.filter((member) => String(member.roleCode || '').toUpperCase().includes('ADMIN')))
+const workspaceRegularMembers = computed(() => members.value.filter((member) => !String(member.roleCode || '').toUpperCase().includes('ADMIN')))
+const workspaceMemberTotal = computed(() => members.value.length + (managingWorkspace.value ? 1 : 0))
 
 function resetUserFilters() {
   userKeyword.value = ''
@@ -195,6 +201,18 @@ function getWorkspaceTypeLabel(workspace: WorkspaceItem) {
 
 function getWorkspaceOwnerLabel(workspace: WorkspaceItem) {
   return workspace.ownerName || '未设置'
+}
+
+function getWorkspaceInitial(name?: string | null) {
+  return (name || '-').trim().slice(0, 1).toUpperCase()
+}
+
+function getWorkspaceMemberDescription(roleCode?: string | null) {
+  const normalizedRole = String(roleCode || '').toUpperCase()
+  if (normalizedRole.includes('ADMIN')) {
+    return '具有空间管理权限，可编辑用例和配置'
+  }
+  return '可访问该空间，可查看和执行测试用例'
 }
 
 function getWorkspaceMemberCount(workspace: WorkspaceItem) {
@@ -506,6 +524,17 @@ function openEditWorkspaceDialog(workspace: WorkspaceItem) {
   workspaceDialogVisible.value = true
 }
 
+function openWorkspaceMembers(workspace: WorkspaceItem) {
+  const workspaceCode = workspaceDisplayCode(workspace)
+  managingWorkspaceCode.value = workspaceCode
+  memberWorkspaceCode.value = workspaceCode
+  void loadMembers()
+}
+
+function closeWorkspaceMembers() {
+  managingWorkspaceCode.value = ''
+}
+
 async function submitWorkspace(payload: SaveWorkspacePayload) {
   savingWorkspace.value = true
   try {
@@ -525,7 +554,35 @@ async function submitWorkspace(payload: SaveWorkspacePayload) {
   }
 }
 
-function openCreateMemberDialog() {
+async function confirmDeleteWorkspace(workspace: WorkspaceItem) {
+  const workspaceCode = workspaceDisplayCode(workspace)
+  try {
+    await ElMessageBox.confirm(
+      `删除后将无法恢复工作空间“${workspaceDisplayName(workspace)}”。只有无依赖数据的空间允许删除，是否继续？`,
+      '删除工作空间',
+      {
+        confirmButtonText: '删除',
+        cancelButtonText: '取消',
+        type: 'warning',
+        confirmButtonClass: 'el-button--danger',
+      },
+    )
+
+    await workspaceApi.deleteWorkspace(workspaceCode)
+    ElMessage.success('工作空间删除成功')
+    if (managingWorkspaceCode.value === workspaceCode) {
+      managingWorkspaceCode.value = ''
+    }
+    await loadWorkspaces()
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error(getRequestErrorMessage(error))
+    }
+  }
+}
+
+function openCreateMemberDialog(roleCode: 'ADMIN' | 'MEMBER' = 'MEMBER') {
+  memberCreateRole.value = roleCode
   memberDialogMode.value = 'create'
   editingMember.value = null
   memberDialogVisible.value = true
@@ -617,7 +674,7 @@ watch(memberWorkspaceCode, () => {
 
 <template>
   <section class="workspace-settings-panel" :class="`is-${mode}-mode`">
-    <header class="settings-panel-header">
+    <header v-if="!managingWorkspace" class="settings-panel-header">
       <div>
         <h2>{{ panelTitle }}</h2>
         <p>{{ panelDescription }}</p>
@@ -644,6 +701,7 @@ watch(memberWorkspaceCode, () => {
       </div>
     </header>
 
+    <template v-if="!managingWorkspace">
     <div class="settings-stat-grid">
       <div v-for="item in visibleStats" :key="item.label" class="settings-stat">
         <span>{{ item.label }}</span>
@@ -711,10 +769,28 @@ watch(memberWorkspaceCode, () => {
             <div class="workspace-card-actions">
               <button
                 type="button"
+                title="成员管理"
+                aria-label="成员管理"
+                @click="openWorkspaceMembers(workspace)"
+              >
+                <UserCog :size="16" />
+              </button>
+              <button
+                type="button"
+                title="编辑"
                 aria-label="编辑空间"
                 @click="openEditWorkspaceDialog(workspace)"
               >
                 <Edit2 :size="16" />
+              </button>
+              <button
+                type="button"
+                class="is-danger"
+                title="删除"
+                aria-label="删除空间"
+                @click="confirmDeleteWorkspace(workspace)"
+              >
+                <Trash2 :size="16" />
               </button>
             </div>
           </div>
@@ -1046,6 +1122,151 @@ watch(memberWorkspaceCode, () => {
         </el-table>
       </template>
     </div>
+    </template>
+
+    <template v-else>
+      <div class="workspace-manage-head">
+        <div class="workspace-manage-top">
+          <button type="button" class="workspace-back-button" @click="closeWorkspaceMembers">
+            <ChevronLeft :size="16" />
+            返回工作空间列表
+          </button>
+          <div class="workspace-manage-summary">
+            <div class="workspace-manage-icon" :class="`is-${normalizeWorkspaceType(managingWorkspace)}`">
+              <Users v-if="normalizeWorkspaceType(managingWorkspace) === 'team'" :size="26" />
+              <Target v-else-if="normalizeWorkspaceType(managingWorkspace) === 'product'" :size="26" />
+              <Package v-else :size="26" />
+            </div>
+            <div>
+              <h1>{{ workspaceDisplayName(managingWorkspace) }}</h1>
+              <p>{{ managingWorkspace.description || '暂无空间说明' }}</p>
+              <div class="workspace-manage-meta">
+                <span class="workspace-type-badge" :class="`is-${normalizeWorkspaceType(managingWorkspace)}`">
+                  <Users v-if="normalizeWorkspaceType(managingWorkspace) === 'team'" :size="13" />
+                  <Target v-else-if="normalizeWorkspaceType(managingWorkspace) === 'product'" :size="13" />
+                  <Package v-else :size="13" />
+                  {{ getWorkspaceTypeLabel(managingWorkspace) }}
+                </span>
+                <span>创建于当前系统空间</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button type="button" class="workspace-save-button" @click="openEditWorkspaceDialog(managingWorkspace)">
+          编辑空间
+        </button>
+      </div>
+
+      <nav class="workspace-manage-tabs">
+        <button type="button" class="is-active">成员管理</button>
+        <button type="button" disabled>权限设置</button>
+        <button type="button" disabled>操作日志</button>
+      </nav>
+
+      <div class="workspace-member-page" v-loading="memberLoading">
+        <div class="workspace-member-title">
+          <h2>成员管理</h2>
+          <span>共 {{ workspaceMemberTotal }} 名成员</span>
+        </div>
+
+        <AppEmptyState
+          v-if="memberErrorMessage && members.length === 0"
+          title="成员列表加载失败"
+          :description="memberErrorMessage"
+        >
+          <template #actions>
+            <AppButton :icon="RefreshRight" @click="loadMembers">重试</AppButton>
+          </template>
+        </AppEmptyState>
+
+        <template v-else>
+          <section class="workspace-member-section is-owner">
+            <div class="workspace-member-section-title">
+              <Crown :size="16" />
+              <h3>负责人 (1人)</h3>
+            </div>
+            <div class="workspace-member-row is-owner">
+              <div class="workspace-member-profile">
+                <div class="workspace-avatar is-owner">{{ getWorkspaceInitial(getWorkspaceOwnerLabel(managingWorkspace)) }}</div>
+                <div>
+                  <strong>{{ getWorkspaceOwnerLabel(managingWorkspace) }}</strong>
+                  <p>拥有空间最高权限</p>
+                </div>
+              </div>
+              <span class="workspace-role-badge is-owner">Owner</span>
+            </div>
+          </section>
+
+          <section class="workspace-member-section">
+            <div class="workspace-member-section-head">
+              <div class="workspace-member-section-title">
+                <Shield :size="16" />
+                <h3>空间管理员 ({{ workspaceAdminMembers.length }}人)</h3>
+              </div>
+              <button
+                type="button"
+                class="workspace-member-add is-admin"
+                @click="openCreateMemberDialog('ADMIN')"
+              >
+                <Plus />
+                添加空间管理员
+              </button>
+            </div>
+            <div v-if="workspaceAdminMembers.length" class="workspace-member-list">
+              <div v-for="item in workspaceAdminMembers" :key="item.id" class="workspace-member-row">
+                <div class="workspace-member-profile">
+                  <div class="workspace-avatar is-admin">{{ getUserInitial(item) }}</div>
+                  <div>
+                    <strong>{{ item.displayName || item.username || '-' }}</strong>
+                    <p>{{ getWorkspaceMemberDescription(item.roleCode) }}</p>
+                  </div>
+                </div>
+                <div class="workspace-member-actions">
+                  <span class="workspace-role-badge is-admin">空间管理员</span>
+                  <button type="button" class="workspace-member-text-action" @click="openEditMemberDialog(item)">编辑角色</button>
+                  <button type="button" :disabled="isMemberDeleting(item.id)" @click="removeMember(item)">
+                    <Trash2 :size="16" />
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div v-else class="workspace-member-empty">暂无管理员，点击右上角添加</div>
+          </section>
+
+          <section class="workspace-member-section">
+            <div class="workspace-member-section-head">
+              <div class="workspace-member-section-title">
+                <Users :size="16" />
+                <h3>普通成员 ({{ workspaceRegularMembers.length }}人)</h3>
+              </div>
+              <button type="button" class="workspace-member-add" @click="openCreateMemberDialog('MEMBER')">
+                <Plus />
+                添加普通成员
+              </button>
+            </div>
+            <div v-if="workspaceRegularMembers.length" class="workspace-member-list">
+              <div v-for="item in workspaceRegularMembers" :key="item.id" class="workspace-member-row">
+                <div class="workspace-member-profile">
+                  <div class="workspace-avatar">{{ getUserInitial(item) }}</div>
+                  <div>
+                    <strong>{{ item.displayName || item.username || '-' }}</strong>
+                    <p>{{ getWorkspaceMemberDescription(item.roleCode) }}</p>
+                  </div>
+                </div>
+                <div class="workspace-member-actions">
+                  <span class="workspace-role-badge">普通成员</span>
+                  <button type="button" class="workspace-member-text-action" @click="openEditMemberDialog(item)">编辑角色</button>
+                  <button type="button" :disabled="isMemberDeleting(item.id)" @click="removeMember(item)">
+                    <Trash2 :size="16" />
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div v-else class="workspace-member-empty">暂无成员，点击右上角添加</div>
+          </section>
+        </template>
+      </div>
+    </template>
 
     <WorkspaceCreateEditDialog
       v-model="workspaceDialogVisible"
@@ -1127,6 +1348,7 @@ watch(memberWorkspaceCode, () => {
       v-model="memberDialogVisible"
       :mode="memberDialogMode"
       :member="editingMember"
+      :initial-role="memberCreateRole"
       :saving="savingMember"
       @create="submitCreateMember"
       @update="submitUpdateMember"
@@ -1718,6 +1940,355 @@ watch(memberWorkspaceCode, () => {
   border-color: #e9d5ff;
   background: var(--app-purple-soft);
   color: var(--app-purple) !important;
+}
+
+.workspace-manage-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-bg-panel);
+}
+
+.workspace-manage-top {
+  min-width: 0;
+}
+
+.workspace-back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--app-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.workspace-back-button:hover {
+  color: var(--app-text-primary);
+}
+
+.workspace-manage-summary {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.workspace-manage-icon {
+  display: inline-flex;
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3b82f6, var(--app-primary));
+  color: var(--app-text-inverse);
+}
+
+.workspace-manage-icon.is-team {
+  background: linear-gradient(135deg, #22c55e, var(--app-success));
+}
+
+.workspace-manage-icon.is-product {
+  background: linear-gradient(135deg, #a855f7, var(--app-purple));
+}
+
+.workspace-manage-summary h1 {
+  margin: 0 0 4px;
+  color: var(--app-text-primary);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.workspace-manage-summary p {
+  margin: 0;
+  color: var(--app-text-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.workspace-manage-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.workspace-manage-meta > span:not(.workspace-type-badge) {
+  color: var(--app-text-subtle);
+  font-size: 12px;
+}
+
+.workspace-save-button {
+  flex: 0 0 auto;
+  margin-top: 32px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--app-primary);
+  color: var(--app-text-inverse);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 180ms ease;
+}
+
+.workspace-save-button:hover {
+  background: var(--app-primary-hover);
+}
+
+.workspace-manage-tabs {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 32px;
+  border-bottom: 1px solid var(--app-border);
+  background: var(--app-bg-panel);
+}
+
+.workspace-manage-tabs button {
+  height: 44px;
+  padding: 0 4px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--app-text-muted);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.workspace-manage-tabs button.is-active {
+  border-bottom-color: var(--app-primary);
+  color: var(--app-primary);
+  font-weight: 500;
+}
+
+.workspace-manage-tabs button:disabled {
+  cursor: default;
+}
+
+.workspace-member-page {
+  max-width: 896px;
+  padding: 28px 32px;
+}
+
+.workspace-member-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.workspace-member-title h2 {
+  margin: 0;
+  color: var(--app-text-primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.workspace-member-title span {
+  color: var(--app-text-muted);
+  font-size: 14px;
+}
+
+.workspace-member-section {
+  padding: 24px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-bg-panel);
+}
+
+.workspace-member-section + .workspace-member-section {
+  margin-top: 16px;
+}
+
+.workspace-member-section-title,
+.workspace-member-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.workspace-member-section-head {
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.workspace-member-section-title {
+  color: var(--app-text-primary);
+}
+
+.workspace-member-section-title h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.workspace-member-section.is-owner .workspace-member-section-title {
+  margin-bottom: 20px;
+  color: #d97706;
+}
+
+.workspace-member-row {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--app-bg-subtle);
+}
+
+.workspace-member-row.is-owner {
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+}
+
+.workspace-member-list {
+  display: grid;
+  gap: 8px;
+}
+
+.workspace-member-profile {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.workspace-avatar {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--app-text-subtle);
+  color: var(--app-text-inverse);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.workspace-avatar.is-owner {
+  background: #f59e0b;
+}
+
+.workspace-avatar.is-admin {
+  background: var(--app-primary);
+}
+
+.workspace-member-profile strong {
+  display: block;
+  color: var(--app-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.workspace-member-profile p {
+  margin: 2px 0 0;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.workspace-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--app-bg-muted);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.workspace-role-badge.is-owner {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.workspace-role-badge.is-admin {
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+}
+
+.workspace-member-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.workspace-member-actions button {
+  display: inline-flex;
+  min-width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--app-text-subtle);
+  cursor: pointer;
+}
+
+.workspace-member-actions button:hover {
+  background: var(--app-bg-muted);
+  color: var(--app-text-primary);
+}
+
+.workspace-member-text-action {
+  padding: 0 8px !important;
+  color: var(--app-primary) !important;
+  font-size: 12px;
+}
+
+.workspace-member-add {
+  display: inline-flex;
+  height: 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-bg-panel);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.workspace-member-add.is-admin,
+.workspace-member-add:hover {
+  border-color: #bfdbfe;
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+}
+
+.workspace-member-add svg {
+  width: 14px;
+  height: 14px;
+}
+
+.workspace-member-empty {
+  padding: 18px;
+  border-radius: 8px;
+  background: var(--app-bg-subtle);
+  color: var(--app-text-muted);
+  font-size: 13px;
+  text-align: center;
 }
 
 .team-member-cell {

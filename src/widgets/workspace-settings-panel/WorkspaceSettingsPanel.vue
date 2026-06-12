@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { Plus, RefreshRight } from '@element-plus/icons-vue'
-import { ChevronLeft, Crown, Edit2, Package, Shield, Target, Trash2, User, UserCog, Users } from '@lucide/vue'
+import { Activity, Check, ChevronLeft, Crown, Edit2, Layers, Package, Shield, Target, Trash2, User, UserCog, Users } from '@lucide/vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import {
@@ -97,17 +97,17 @@ const workspaceOwnerOptions = computed(() => users.value
 const managingWorkspace = computed(() => businessWorkspaces.value.find((item) => workspaceDisplayCode(item) === managingWorkspaceCode.value) || null)
 
 const workspaceStats = computed(() => [
-  { label: '空间总数', value: businessWorkspaces.value.length },
-  { label: '启用空间', value: businessWorkspaces.value.filter((item) => Number(item.status) !== 0).length },
-  { label: '用户总数', value: users.value.length },
-  { label: '启用用户', value: users.value.filter((item) => Number(item.status) === 1).length },
+  { label: '空间总数', value: businessWorkspaces.value.length, tone: 'blue', icon: Layers },
+  { label: '启用空间', value: businessWorkspaces.value.filter((item) => Number(item.status) !== 0).length, tone: 'green', icon: Check },
+  { label: '用户总数', value: users.value.length, tone: 'purple', icon: Users },
+  { label: '启用用户', value: users.value.filter((item) => Number(item.status) === 1).length, tone: 'orange', icon: Activity },
 ])
 
 const teamStats = computed(() => [
-  { label: '用户总数', value: users.value.length },
-  { label: '启用用户', value: users.value.filter((item) => Number(item.status) === 1).length },
-  { label: '业务空间', value: businessWorkspaces.value.length },
-  { label: '当前空间成员', value: members.value.length },
+  { label: '用户总数', value: users.value.length, tone: 'blue', icon: Users },
+  { label: '启用用户', value: users.value.filter((item) => Number(item.status) === 1).length, tone: 'green', icon: Check },
+  { label: '业务空间', value: businessWorkspaces.value.length, tone: 'purple', icon: Shield },
+  { label: '当前空间成员', value: members.value.length, tone: 'orange', icon: User },
 ])
 const isTeamMode = computed(() => props.mode === 'team')
 const canManageUsers = computed(() => {
@@ -652,8 +652,16 @@ watch(memberWorkspaceCode, () => {
 
     <template v-if="!managingWorkspace">
     <div class="settings-stat-grid">
-      <div v-for="item in visibleStats" :key="item.label" class="settings-stat">
-        <span>{{ item.label }}</span>
+      <div
+        v-for="item in visibleStats"
+        :key="item.label"
+        class="settings-stat"
+        :class="`is-${item.tone}`"
+      >
+        <div class="settings-stat__head">
+          <span>{{ item.label }}</span>
+          <component :is="item.icon" :size="16" />
+        </div>
         <strong>{{ item.value }}</strong>
       </div>
     </div>
@@ -1182,36 +1190,22 @@ watch(memberWorkspaceCode, () => {
   padding: 16px 20px;
 }
 
-.settings-stat span {
+.settings-stat__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  margin-bottom: 8px;
+}
+
+.settings-stat span {
   color: var(--app-text-muted);
   font-size: var(--app-font-size-xs);
   line-height: 1.35;
 }
 
-.settings-stat span::after {
-  display: inline-flex;
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  border-radius: 6px;
-  background: var(--app-primary-soft);
-  content: "";
-}
-
-.settings-stat:nth-child(2) span::after {
-  background: var(--app-success-soft);
-}
-
-.settings-stat:nth-child(3) span::after {
-  background: var(--app-purple-soft);
-}
-
-.settings-stat:nth-child(4) span::after {
-  background: var(--app-warning-soft);
+.settings-stat svg {
+  flex: 0 0 auto;
 }
 
 .settings-stat strong {
@@ -1221,19 +1215,23 @@ watch(memberWorkspaceCode, () => {
   line-height: 1.2;
 }
 
-.settings-stat:nth-child(1) strong {
+.settings-stat.is-blue strong,
+.settings-stat.is-blue svg {
   color: var(--app-primary);
 }
 
-.settings-stat:nth-child(2) strong {
+.settings-stat.is-green strong,
+.settings-stat.is-green svg {
   color: var(--app-success);
 }
 
-.settings-stat:nth-child(3) strong {
+.settings-stat.is-purple strong,
+.settings-stat.is-purple svg {
   color: var(--app-purple);
 }
 
-.settings-stat:nth-child(4) strong {
+.settings-stat.is-orange strong,
+.settings-stat.is-orange svg {
   color: var(--app-warning);
 }
 

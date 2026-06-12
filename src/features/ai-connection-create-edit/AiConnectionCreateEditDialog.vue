@@ -631,6 +631,12 @@ watch(
   display: none;
 }
 
+.ai-connection-brand.provider-logo-kimi.has-logo-image {
+  padding: 9px;
+  background: #000;
+  box-shadow: 0 2px 7px rgba(15, 23, 42, 0.12);
+}
+
 .ai-connection-brand--primary {
   border-color: #bfdbfe;
   background: var(--app-primary-soft);

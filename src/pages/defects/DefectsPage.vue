@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 
-import { defectApi, type DefectClientFilter, type DefectStatistics, type DefectSummaryItem } from '@/entities/defect'
+import { defectApi, type DefectClientFilter, type DefectStatistics } from '@/entities/defect'
 import { workspaceApi, type WorkspaceItem } from '@/entities/workspace'
 import { getRequestErrorMessage } from '@/shared/api/error'
 import AppPage from '@/shared/ui/app-page/AppPage.vue'
@@ -18,13 +18,13 @@ const workspaceErrorMessage = ref('')
 const statistics = ref<DefectStatistics | null>(null)
 const statisticsLoading = ref(false)
 const statisticsErrorMessage = ref('')
-const currentDefects = ref<DefectSummaryItem[]>([])
 const filter = ref<DefectClientFilter>({
   keyword: '',
   status: '',
   priority: '',
   severity: '',
 })
+const listPanelRef = ref<InstanceType<typeof DefectListPanel> | null>(null)
 
 const workspaceOptions = computed(() => {
   const options = workspaces.value.map((item) => ({
@@ -80,6 +80,10 @@ function handleWorkspaceChange(value: string) {
   void loadStatistics()
 }
 
+function handleCreateDefect() {
+  listPanelRef.value?.openCreateDialog()
+}
+
 function resetFilters() {
   filter.value = {
     keyword: '',
@@ -127,18 +131,25 @@ onMounted(() => {
     </template>
 
     <div class="defects-page">
-      <DefectFilterPanel v-model="filter" @reset="resetFilters" />
       <DefectSummaryPanel
         :statistics="statistics"
         :loading="statisticsLoading"
         :error-message="statisticsErrorMessage"
         @retry="loadStatistics"
       />
+
+      <DefectFilterPanel
+        v-model="filter"
+        :show-create-button="workspaceReady"
+        @reset="resetFilters"
+        @create="handleCreateDefect"
+      />
+
       <DefectListPanel
         v-if="workspaceReady"
+        ref="listPanelRef"
         :workspace-code="workspaceCode"
         :filter="filter"
-        @loaded="currentDefects = $event"
       />
     </div>
   </AppPage>
@@ -149,7 +160,7 @@ onMounted(() => {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: var(--app-space-4);
+  gap: var(--app-space-5);
 }
 
 .defects-workspace-select {

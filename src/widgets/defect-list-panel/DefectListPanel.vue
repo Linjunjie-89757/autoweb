@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { MoreFilled, Plus, RefreshRight } from '@element-plus/icons-vue'
+import { MoreFilled, RefreshRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 import {
@@ -13,8 +13,8 @@ import {
   formatDefectDateTime,
   formatDefectTags,
   type DefectClientFilter,
-  type SaveDefectPayload,
   type DefectSummaryItem,
+  type SaveDefectPayload,
   type TransitionDefectPayload,
 } from '@/entities/defect'
 import { DefectAssignDialog, assignDefect } from '@/features/defect-assign'
@@ -283,6 +283,7 @@ onMounted(() => {
 
 defineExpose({
   reload: loadDefects,
+  openCreateDialog,
 })
 </script>
 
@@ -306,13 +307,12 @@ defineExpose({
         <AppButton size="small" :icon="RefreshRight" @click="loadDefects">重试</AppButton>
       </div>
 
-      <div class="defect-list-panel__toolbar">
+      <header class="defect-list-panel__header">
         <div>
           <strong>缺陷列表</strong>
-          <span>共 {{ total }} 条</span>
+          <span>共 {{ total }} 条缺陷记录</span>
         </div>
-        <AppButton type="primary" :icon="Plus" @click="openCreateDialog">新增缺陷</AppButton>
-      </div>
+      </header>
 
       <div class="defect-list-panel__table-wrap">
         <el-table
@@ -416,6 +416,7 @@ defineExpose({
 
       <AppEmptyState
         v-if="!loading && !defects.length && !errorMessage"
+        class="defect-list-panel__empty"
         title="暂无匹配缺陷"
         description="当前工作空间或筛选条件下没有可展示的缺陷记录。"
       />
@@ -479,12 +480,12 @@ defineExpose({
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: var(--app-space-3);
-  padding: var(--app-space-3);
+  gap: 0;
+  overflow: hidden;
   border: 1px solid var(--app-border);
   border-radius: var(--app-radius-lg);
   background: var(--app-bg-panel);
-  box-shadow: var(--app-shadow-card);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
 }
 
 .defect-list-panel__inline-error {
@@ -492,6 +493,7 @@ defineExpose({
   align-items: center;
   justify-content: space-between;
   gap: var(--app-space-3);
+  margin: var(--app-space-4) var(--app-space-5) 0;
   padding: var(--app-space-2) var(--app-space-3);
   border: 1px solid #fecaca;
   border-radius: var(--app-radius-md);
@@ -507,37 +509,63 @@ defineExpose({
   white-space: nowrap;
 }
 
-.defect-list-panel__toolbar {
+.defect-list-panel__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--app-space-3);
+  gap: var(--app-space-4);
+  padding: var(--app-space-4) var(--app-space-5);
+  border-bottom: 1px solid var(--app-border);
+  background: linear-gradient(180deg, #ffffff 0%, #fcfdff 100%);
 }
 
-.defect-list-panel__toolbar > div {
+.defect-list-panel__header > div {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
-.defect-list-panel__toolbar strong {
+.defect-list-panel__header strong {
   color: var(--app-text-primary);
   font-size: var(--app-font-size-md);
+  line-height: 24px;
 }
 
-.defect-list-panel__toolbar span {
+.defect-list-panel__header span {
   color: var(--app-text-muted);
-  font-size: var(--app-font-size-sm);
+  font-size: var(--app-font-size-xs);
+  line-height: 18px;
 }
 
 .defect-list-panel__table-wrap {
   min-width: 0;
   overflow-x: auto;
+  padding: 0 var(--app-space-1);
 }
 
 .defect-list-panel__table {
   min-width: 1550px;
+}
+
+.defect-list-panel__table :deep(.el-table__header th) {
+  height: 48px;
+  background: #f8fafc;
+}
+
+.defect-list-panel__table :deep(.el-table__header .cell) {
+  color: var(--app-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.defect-list-panel__table :deep(.el-table__row) {
+  height: 54px;
+}
+
+.defect-list-panel__table :deep(.el-table__row td) {
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .defect-list-panel__code {
@@ -570,13 +598,19 @@ defineExpose({
   margin-left: 0;
 }
 
+.defect-list-panel__empty {
+  padding: var(--app-space-7) var(--app-space-5);
+  border-top: 1px solid var(--app-border-soft);
+}
+
 .defect-list-panel__pagination {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--app-space-3);
-  padding-top: var(--app-space-3);
+  min-height: 58px;
+  padding: 12px var(--app-space-5);
   border-top: 1px solid var(--app-border-soft);
   color: var(--app-text-muted);
   font-size: var(--app-font-size-sm);

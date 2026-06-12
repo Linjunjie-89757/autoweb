@@ -17,6 +17,7 @@ import {
   getUserDisplayName,
   getUserRoleLabel,
   getUserStatusMeta,
+  type BatchCreateUserResult,
   type UpdateUserPayload,
   type UserItem,
   userApi,
@@ -37,12 +38,15 @@ import AppLoadingState from '@/shared/ui/app-loading-state/AppLoadingState.vue'
 type PanelMode = 'workspace' | 'team'
 
 interface UserEditForm {
+  username: string
   email: string
   displayName: string
   roleCode: string
   status: number
   workspaceCodes: string[]
 }
+
+type UserDialogMode = 'create' | 'edit'
 
 const props = withDefaults(
   defineProps<{
@@ -75,17 +79,26 @@ const memberDialogMode = ref<WorkspaceMemberDialogMode>('create')
 const memberCreateRole = ref<'ADMIN' | 'MEMBER'>('MEMBER')
 const editingMember = ref<WorkspaceMemberItem | null>(null)
 const userDialogVisible = ref(false)
+const userDialogMode = ref<UserDialogMode>('edit')
+const batchUserDialogVisible = ref(false)
 const editingUser = ref<UserItem | null>(null)
 const savingUser = ref(false)
+const savingBatchUser = ref(false)
 const mutatingUserIds = ref<Set<number>>(new Set())
 const deletingMemberIds = ref<Set<number>>(new Set())
 const userForm = ref<UserEditForm>({
+  username: '',
   email: '',
   displayName: '',
   roleCode: 'MEMBER',
   status: 1,
   workspaceCodes: [],
 })
+const batchUserForm = ref({
+  rawText: '',
+  workspaceCodes: [] as string[],
+})
+const batchUserResults = ref<BatchCreateUserResult[]>([])
 
 const businessWorkspaces = computed(() => workspaces.value.filter((item) => !item.allScope && item.workspaceCode !== 'ALL'))
 const workspaceOwnerOptions = computed(() => users.value
@@ -288,6 +301,25 @@ function normalizeWorkspaceCodes(value: string[]) {
   return Array.from(new Set(value.filter(Boolean)))
 }
 
+function resetUserForm() {
+  userForm.value = {
+    username: '',
+    email: '',
+    displayName: '',
+    roleCode: 'MEMBER',
+    status: 1,
+    workspaceCodes: [],
+  }
+}
+
+function resetBatchUserForm() {
+  batchUserForm.value = {
+    rawText: '',
+    workspaceCodes: [],
+  }
+  batchUserResults.value = []
+}
+
 function buildUserUpdatePayload(user: UserItem, overrides: Partial<UpdateUserPayload> = {}): UpdateUserPayload {
   return {
     email: user.email,
@@ -306,7 +338,9 @@ function openUserEdit(row: UserItem) {
   }
 
   editingUser.value = row
+  userDialogMode.value = 'edit'
   userForm.value = {
+    username: row.username || '',
     email: row.email || '',
     displayName: getUserDisplayName(row) === '-' ? '' : getUserDisplayName(row),
     roleCode: row.roleCode || 'MEMBER',
@@ -316,8 +350,103 @@ function openUserEdit(row: UserItem) {
   userDialogVisible.value = true
 }
 
+function openUserCreate() {
+  if (!canManageUsers.value) {
+    ElMessage.warning('当前账号无用户维护权限')
+    return
+  }
+  editingUser.value = null
+  userDialogMode.value = 'create'
+  resetUserForm()
+  userDialogVisible.value = true
+}
+
+function openBatchUserCreate() {
+  if (!canManageUsers.value) {
+    ElMessage.warning('当前账号无用户维护权限')
+    return
+  }
+  resetBatchUserForm()
+  batchUserDialogVisible.value = true
+}
+
+function splitBatchUserLine(line: string) {
+  if (line.includes(',')) {
+    return line.split(',').map((item) => item.trim())
+  }
+  if (line.includes('\t')) {
+    return line.split('\t').map((item) => item.trim())
+  }
+  return line.trim().split(/\s+/).map((item) => item.trim())
+}
+
+function parseBatchUsers() {
+  const existingUsernames = new Set(users.value.map((item) => item.username.trim().toLowerCase()))
+  const existingEmails = new Set(users.value.map((item) => item.email.trim().toLowerCase()))
+  const batchUsernames = new Set<string>()
+  const batchEmails = new Set<string>()
+  const workspaceCodes = normalizeWorkspaceCodes(batchUserForm.value.workspaceCodes)
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const parsed = [] as Array<{
+    username: string
+    displayName: string
+    email: string
+    roleCode: string
+    workspaceCodes: string[]
+  }>
+  const errors: string[] = []
+
+  batchUserForm.value.rawText
+    .split(/\r?\n/)
+    .map((line, index) => ({ line: line.trim(), index: index + 1 }))
+    .filter((item) => item.line)
+    .forEach(({ line, index }) => {
+      const [username = '', displayName = '', email = ''] = splitBatchUserLine(line)
+      const normalizedUsername = username.trim().toLowerCase()
+      const normalizedEmail = email.trim().toLowerCase()
+
+      if (!username || !displayName || !email) {
+        errors.push(`第 ${index} 行：请按“账号,姓名,邮箱”填写`)
+        return
+      }
+      if (!emailPattern.test(email)) {
+        errors.push(`第 ${index} 行：邮箱格式不正确`)
+        return
+      }
+      if (existingUsernames.has(normalizedUsername)) {
+        errors.push(`第 ${index} 行：账号已存在`)
+        return
+      }
+      if (existingEmails.has(normalizedEmail)) {
+        errors.push(`第 ${index} 行：邮箱已存在`)
+        return
+      }
+      if (batchUsernames.has(normalizedUsername)) {
+        errors.push(`第 ${index} 行：账号在本次批量中重复`)
+        return
+      }
+      if (batchEmails.has(normalizedEmail)) {
+        errors.push(`第 ${index} 行：邮箱在本次批量中重复`)
+        return
+      }
+
+      batchUsernames.add(normalizedUsername)
+      batchEmails.add(normalizedEmail)
+      parsed.push({
+        username: username.trim(),
+        displayName: displayName.trim(),
+        email: email.trim(),
+        roleCode: 'MEMBER',
+        workspaceCodes,
+      })
+    })
+
+  return { parsed, errors }
+}
+
 async function submitUserEdit() {
-  if (!editingUser.value) {
+  if (userDialogMode.value === 'create' && !userForm.value.username.trim()) {
+    ElMessage.error('请填写账号')
     return
   }
   if (!userForm.value.email.trim()) {
@@ -335,20 +464,72 @@ async function submitUserEdit() {
 
   savingUser.value = true
   try {
-    await userApi.updateUser(editingUser.value.id, buildUserUpdatePayload(editingUser.value, {
-      email: userForm.value.email.trim(),
-      displayName: userForm.value.displayName.trim(),
-      roleCode: userForm.value.roleCode,
-      status: userForm.value.status,
-      workspaceCodes: normalizeWorkspaceCodes(userForm.value.workspaceCodes),
-    }))
-    ElMessage.success('用户信息已更新')
+    if (userDialogMode.value === 'create') {
+      await userApi.createUser({
+        username: userForm.value.username.trim(),
+        email: userForm.value.email.trim(),
+        displayName: userForm.value.displayName.trim(),
+        roleCode: userForm.value.roleCode,
+        workspaceCodes: normalizeWorkspaceCodes(userForm.value.workspaceCodes),
+      })
+      ElMessage.success('用户已创建')
+    } else if (editingUser.value) {
+      await userApi.updateUser(editingUser.value.id, buildUserUpdatePayload(editingUser.value, {
+        email: userForm.value.email.trim(),
+        displayName: userForm.value.displayName.trim(),
+        roleCode: userForm.value.roleCode,
+        status: userForm.value.status,
+        workspaceCodes: normalizeWorkspaceCodes(userForm.value.workspaceCodes),
+      }))
+      ElMessage.success('用户信息已更新')
+    }
     userDialogVisible.value = false
     await loadUsers()
   } catch (error) {
     ElMessage.error(getRequestErrorMessage(error))
   } finally {
     savingUser.value = false
+  }
+}
+
+async function submitBatchUsers() {
+  const { parsed, errors } = parseBatchUsers()
+  batchUserResults.value = []
+  if (!batchUserForm.value.rawText.trim()) {
+    ElMessage.error('请先粘贴账号数据')
+    return
+  }
+  if (errors.length) {
+    ElMessage.error(errors[0])
+    batchUserResults.value = errors.map((message, index) => ({
+      index: index + 1,
+      username: '',
+      email: '',
+      displayName: '',
+      success: false,
+      message,
+      user: null,
+    }))
+    return
+  }
+  if (!parsed.length) {
+    ElMessage.error('没有可新增的账号')
+    return
+  }
+
+  savingBatchUser.value = true
+  try {
+    const response = await userApi.batchCreateUsers({ users: parsed })
+    batchUserResults.value = response.results
+    ElMessage.success(`批量新增完成：成功 ${response.successCount} 个，失败 ${response.failureCount} 个`)
+    await loadUsers()
+    if (response.failureCount === 0) {
+      batchUserDialogVisible.value = false
+    }
+  } catch (error) {
+    ElMessage.error(getRequestErrorMessage(error))
+  } finally {
+    savingBatchUser.value = false
   }
 }
 
@@ -640,12 +821,11 @@ watch(memberWorkspaceCode, () => {
       <div class="settings-panel-header__actions">
         <AppButton
           v-if="isTeamMode"
-          :icon="RefreshRight"
-          :loading="workspaceLoading || userLoading"
-          @click="reloadAll"
+          @click="openBatchUserCreate"
         >
-          刷新
+          批量新增
         </AppButton>
+        <AppButton v-if="isTeamMode" type="primary" :icon="Plus" @click="openUserCreate">新增账号</AppButton>
         <AppButton v-else type="primary" :icon="Plus" @click="openCreateWorkspaceDialog">新增空间</AppButton>
       </div>
     </header>
@@ -1044,10 +1224,14 @@ watch(memberWorkspaceCode, () => {
 
     <AppDialog
       v-model="userDialogVisible"
-      title="编辑用户"
+      :title="userDialogMode === 'create' ? '新增账号' : '编辑用户'"
       width="560px"
     >
       <div class="user-edit-dialog">
+        <label v-if="userDialogMode === 'create'" class="user-edit-dialog__field is-full">
+          <span>账号 *</span>
+          <el-input v-model="userForm.username" placeholder="请输入账号" />
+        </label>
         <label class="user-edit-dialog__field">
           <span>姓名 *</span>
           <el-input v-model="userForm.displayName" placeholder="请输入姓名" />
@@ -1098,11 +1282,76 @@ watch(memberWorkspaceCode, () => {
             {{ businessWorkspaces.length ? '未选择时表示不授予具体业务空间。' : '暂无可选择的业务工作空间。' }}
           </p>
         </label>
+        <p v-if="userDialogMode === 'create'" class="user-edit-dialog__note">
+          平台账号创建后使用后端默认初始密码，后续可在列表中重置密码。
+        </p>
       </div>
 
       <template #footer>
         <AppButton :disabled="savingUser" @click="userDialogVisible = false">取消</AppButton>
         <AppButton type="primary" :loading="savingUser" @click="submitUserEdit">保存</AppButton>
+      </template>
+    </AppDialog>
+
+    <AppDialog
+      v-model="batchUserDialogVisible"
+      title="批量新增普通账号"
+      width="760px"
+    >
+      <div class="batch-user-dialog">
+        <div class="batch-user-dialog__note">
+          每行一个账号，格式为 <span>账号,姓名,邮箱</span>。也支持从 Excel 复制三列后直接粘贴。批量新增账号默认角色为普通账号。
+        </div>
+        <label class="user-edit-dialog__field is-full">
+          <span>账号数据 *</span>
+          <el-input
+            v-model="batchUserForm.rawText"
+            type="textarea"
+            :rows="9"
+            placeholder="zhangsan,张三,zhangsan@example.com&#10;lisi,李四,lisi@example.com"
+          />
+        </label>
+        <label class="user-edit-dialog__field is-full">
+          <span>可访问空间</span>
+          <el-select
+            v-model="batchUserForm.workspaceCodes"
+            class="user-edit-dialog__workspace-select"
+            multiple
+            filterable
+            collapse-tags
+            collapse-tags-tooltip
+            popper-class="user-edit-workspace-dropdown"
+            :disabled="businessWorkspaces.length === 0"
+            placeholder="可选，未分配时登录后会提示联系管理员"
+          >
+            <el-option
+              v-for="workspace in businessWorkspaces"
+              :key="workspace.workspaceCode"
+              :label="workspaceDisplayName(workspace)"
+              :value="workspace.workspaceCode"
+            >
+              <span>{{ workspaceDisplayName(workspace) }}</span>
+              <small>{{ workspaceDisplayCode(workspace) }}</small>
+            </el-option>
+          </el-select>
+        </label>
+        <div v-if="batchUserResults.length" class="batch-user-results">
+          <div
+            v-for="item in batchUserResults"
+            :key="`${item.index}-${item.username}-${item.message}`"
+            class="batch-user-result-row"
+            :class="{ 'is-success': item.success }"
+          >
+            <span>第 {{ item.index }} 行</span>
+            <strong>{{ item.displayName || item.username || '未解析' }}</strong>
+            <em>{{ item.message }}</em>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <AppButton :disabled="savingBatchUser" @click="batchUserDialogVisible = false">关闭</AppButton>
+        <AppButton type="primary" :loading="savingBatchUser" @click="submitBatchUsers">开始新增</AppButton>
       </template>
     </AppDialog>
 
@@ -2242,6 +2491,81 @@ watch(memberWorkspaceCode, () => {
   color: var(--app-text-muted);
   font-size: var(--app-font-size-xs);
   line-height: 1.45;
+}
+
+.user-edit-dialog__note {
+  grid-column: 1 / -1;
+  margin: -2px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--app-radius-md);
+  background: var(--app-bg-subtle);
+  color: var(--app-text-muted);
+  font-size: var(--app-font-size-xs);
+  line-height: 1.5;
+}
+
+.batch-user-dialog {
+  display: grid;
+  gap: 16px;
+}
+
+.batch-user-dialog__note {
+  padding: 12px 14px;
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--app-radius-md);
+  background: var(--app-bg-subtle);
+  color: var(--app-text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.batch-user-dialog__note span {
+  color: var(--app-text-primary);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+}
+
+.batch-user-results {
+  display: grid;
+  max-height: 220px;
+  overflow-y: auto;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--app-radius-md);
+  background: var(--app-bg-subtle);
+}
+
+.batch-user-result-row {
+  display: grid;
+  min-height: 34px;
+  grid-template-columns: 72px minmax(120px, 1fr) minmax(160px, 2fr);
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: var(--app-danger-soft);
+  color: var(--app-danger);
+  font-size: 12px;
+}
+
+.batch-user-result-row.is-success {
+  background: var(--app-success-soft);
+  color: var(--app-success);
+}
+
+.batch-user-result-row span,
+.batch-user-result-row em {
+  font-style: normal;
+}
+
+.batch-user-result-row strong {
+  overflow: hidden;
+  color: var(--app-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace-member-select {

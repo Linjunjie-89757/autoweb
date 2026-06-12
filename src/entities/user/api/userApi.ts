@@ -1,6 +1,13 @@
 import { httpGet, httpPost, httpPut, type ApiResponse } from '@/shared/api/request'
 
-import type { CreateUserPayload, ResetUserPasswordResponse, UpdateUserPayload, UserItem } from '../model/types'
+import type {
+  BatchCreateUserPayload,
+  BatchCreateUserResponse,
+  CreateUserPayload,
+  ResetUserPasswordResponse,
+  UpdateUserPayload,
+  UserItem,
+} from '../model/types'
 
 function workspaceHeaders(workspaceCode = 'ALL') {
   return {
@@ -19,6 +26,14 @@ function unwrapUserResponse(payload: ApiResponse<UserItem[]>) {
 function unwrapSingleUserResponse(payload: ApiResponse<UserItem>, fallbackMessage: string) {
   if (payload.success === false) {
     throw new Error(payload.message || fallbackMessage)
+  }
+
+  return payload.data
+}
+
+function unwrapBatchCreateUserResponse(payload: ApiResponse<BatchCreateUserResponse>) {
+  if (payload.success === false) {
+    throw new Error(payload.message || '用户批量创建失败')
   }
 
   return payload.data
@@ -51,6 +66,18 @@ export const userApi = {
     )
 
     return unwrapSingleUserResponse(response, '用户创建失败')
+  },
+
+  async batchCreateUsers(payload: BatchCreateUserPayload) {
+    const response = await httpPost<ApiResponse<BatchCreateUserResponse>, BatchCreateUserPayload>(
+      '/users/batch',
+      payload,
+      {
+        headers: workspaceHeaders('ALL'),
+      },
+    )
+
+    return unwrapBatchCreateUserResponse(response)
   },
 
   async updateUser(userId: number, payload: UpdateUserPayload) {

@@ -404,11 +404,10 @@ onMounted(() => {
 .settings-stat {
   display: flex;
   min-width: 0;
-  min-height: 86px;
+  min-height: 88px;
   flex-direction: column;
-  gap: var(--app-space-1);
-  justify-content: space-between;
-  padding: 17px var(--app-space-5);
+  gap: 8px;
+  padding: 16px 20px;
   border: 1px solid var(--app-border);
   border-radius: var(--app-radius-xl);
   background: var(--app-bg-panel);
@@ -439,13 +438,13 @@ onMounted(() => {
 .settings-stat span {
   color: var(--app-text-muted);
   font-size: var(--app-font-size-xs);
-  font-weight: 600;
-  line-height: var(--app-line-height-xs);
+  line-height: 1.35;
 }
 
 .settings-stat strong {
-  font-size: 28px;
-  line-height: 1.1;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .settings-inline-error {

@@ -793,80 +793,80 @@ watch(memberWorkspaceCode, () => {
           <button type="button" class="team-reset-button" @click="resetUserFilters">重置</button>
         </section>
 
-        <section class="team-table-card" v-loading="userLoading">
-          <div v-if="filteredUsers.length === 0" class="team-empty-state">
-            <div class="team-empty-state__icon" aria-hidden="true">
-              <span>U</span>
-            </div>
-            <strong>暂无匹配账号</strong>
-            <p>调整筛选条件后再查看用户账号。</p>
+        <div v-if="filteredUsers.length === 0" class="team-empty-state">
+          <div class="team-empty-state__icon" aria-hidden="true">
+            <span>U</span>
           </div>
+          <strong>暂无匹配账号</strong>
+          <p>调整筛选条件后再查看用户账号。</p>
+        </div>
 
-          <el-table v-else :data="filteredUsers" class="settings-table settings-table--users" row-key="id">
-            <el-table-column label="成员" min-width="220" show-overflow-tooltip>
-              <template #default="{ row }: { row: UserItem }">
-                <div class="team-member-cell">
-                  <div class="team-avatar">{{ getUserInitial(row) }}</div>
-                  <div>
-                    <strong>{{ getUserDisplayName(row) }}</strong>
-                    <p>{{ row.username }} · {{ row.email || '-' }}</p>
-                  </div>
-                </div>
-              </template>
-            </el-table-column>
-            <el-table-column label="平台角色" min-width="120">
-              <template #default="{ row }: { row: UserItem }">
-                <span class="team-role-badge" :class="getUserRoleClass(row.roleCode)">
-                  {{ getUserRoleLabel(row.roleCode) }}
-                </span>
-              </template>
-            </el-table-column>
-            <el-table-column label="可访问空间" min-width="180" show-overflow-tooltip>
-              <template #default="{ row }: { row: UserItem }">
-                <span class="team-workspace-text">{{ formatUserWorkspaceNames(row.workspaceNames) }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="状态" width="100">
-              <template #default="{ row }: { row: UserItem }">
-                <span class="team-status-badge" :class="getUserStatusClass(row.status)">
-                  {{ getUserStatusMeta(row.status).label }}
-                </span>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="184" fixed="right">
-              <template #default="{ row }: { row: UserItem }">
-                <div class="team-row-actions">
-                  <button
-                    type="button"
-                    :disabled="!canMutateUser(row) || isUserMutating(row.id)"
-                    :title="getUserMutableReason(row) || '编辑用户'"
-                    @click="openUserEdit(row)"
-                  >
-                    编辑
-                  </button>
-                  <button
-                    type="button"
-                    :class="{ 'is-danger': Number(row.status) === 1 }"
-                    :disabled="!canMutateUser(row) || isUserMutating(row.id)"
-                    :title="getUserMutableReason(row) || (Number(row.status) === 1 ? '停用用户' : '启用用户')"
-                    @click="toggleUserStatus(row)"
-                  >
-                    {{ Number(row.status) === 1 ? '停用' : '启用' }}
-                  </button>
-                  <button
-                    type="button"
-                    class="is-danger"
-                    :disabled="!canMutateUser(row) || isUserMutating(row.id)"
-                    :title="getUserMutableReason(row) || '重置密码'"
-                    @click="resetUserPassword(row)"
-                  >
-                    {{ isUserMutating(row.id) ? '处理中' : '重置密码' }}
-                  </button>
-                </div>
-              </template>
-            </el-table-column>
-          </el-table>
-        </section>
+        <el-table v-else v-loading="userLoading" :data="filteredUsers" class="settings-table settings-table--users" row-key="id">
+        <el-table-column label="姓名" min-width="140" show-overflow-tooltip>
+          <template #default="{ row }: { row: UserItem }">
+            <div class="team-member-cell">
+              <div class="team-avatar">{{ getUserInitial(row) }}</div>
+              <div>
+                <strong>{{ getUserDisplayName(row) }}</strong>
+                <p>{{ row.username }} · {{ row.email || '-' }}</p>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="username" label="账号" min-width="130" show-overflow-tooltip />
+        <el-table-column prop="email" label="邮箱" min-width="180" show-overflow-tooltip />
+        <el-table-column label="角色" min-width="120">
+          <template #default="{ row }: { row: UserItem }">
+            <span class="team-role-badge" :class="getUserRoleClass(row.roleCode)">
+              {{ getUserRoleLabel(row.roleCode) }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }: { row: UserItem }">
+            <span class="team-status-badge" :class="getUserStatusClass(row.status)">
+              {{ getUserStatusMeta(row.status).label }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="所属空间" min-width="180" show-overflow-tooltip>
+          <template #default="{ row }: { row: UserItem }">
+            <span class="team-workspace-text">{{ formatUserWorkspaceNames(row.workspaceNames) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="184" fixed="right">
+          <template #default="{ row }: { row: UserItem }">
+            <div class="team-row-actions">
+              <button
+                type="button"
+                :disabled="!canMutateUser(row) || isUserMutating(row.id)"
+                :title="getUserMutableReason(row) || '编辑用户'"
+                @click="openUserEdit(row)"
+              >
+                编辑
+              </button>
+              <button
+                type="button"
+                :class="{ 'is-danger': Number(row.status) === 1 }"
+                :disabled="!canMutateUser(row) || isUserMutating(row.id)"
+                :title="getUserMutableReason(row) || (Number(row.status) === 1 ? '停用用户' : '启用用户')"
+                @click="toggleUserStatus(row)"
+              >
+                {{ Number(row.status) === 1 ? '停用' : '启用' }}
+              </button>
+              <button
+                type="button"
+                class="is-danger"
+                :disabled="!canMutateUser(row) || isUserMutating(row.id)"
+                :title="getUserMutableReason(row) || '重置密码'"
+                @click="resetUserPassword(row)"
+              >
+                {{ isUserMutating(row.id) ? '处理中' : '重置密码' }}
+              </button>
+            </div>
+          </template>
+        </el-table-column>
+        </el-table>
       </template>
     </div>
     </template>
@@ -1309,27 +1309,26 @@ watch(memberWorkspaceCode, () => {
 
 .settings-table {
   width: 100%;
-  border: 0;
-  border-radius: 0;
+  border: 1px solid var(--app-border-soft);
+  border-radius: 16px;
+  overflow: hidden;
 }
 
 .settings-table :deep(.el-table__header th) {
   height: 44px;
-  border-bottom: 1px solid var(--app-border-soft);
-  background: var(--app-bg-subtle);
+  background: var(--app-bg-muted);
   color: var(--app-text-secondary);
   font-size: 12px;
   font-weight: 600;
 }
 
 .settings-table :deep(.el-table__header th .cell) {
-  padding: 0 18px;
   line-height: 1.35;
   white-space: nowrap;
 }
 
 .settings-table :deep(.el-table__row) {
-  height: 62px;
+  height: 56px;
 }
 
 .settings-table :deep(.el-table__row:hover > td.el-table__cell) {
@@ -1337,27 +1336,17 @@ watch(memberWorkspaceCode, () => {
 }
 
 .settings-table :deep(.el-table__cell) {
-  border-bottom: 1px solid var(--app-border-soft);
-  padding: 14px 0;
+  padding: 12px 0;
   color: var(--app-text-primary);
   font-size: 14px;
 }
 
 .settings-table :deep(.el-table__cell .cell) {
-  padding: 0 18px;
   line-height: 1.35;
-}
-
-.settings-table :deep(.el-table__body tr:last-child td.el-table__cell) {
-  border-bottom: 0;
 }
 
 .settings-table--users :deep(.el-table__fixed-right) {
   box-shadow: -8px 0 16px rgb(15 23 42 / 0.04);
-}
-
-.settings-table--users :deep(.el-table__inner-wrapper::before) {
-  display: none;
 }
 
 .settings-panel-block--users :deep(.app-empty-state),
@@ -1433,19 +1422,6 @@ watch(memberWorkspaceCode, () => {
   border-color: var(--app-primary);
   background: var(--app-primary-soft);
   color: var(--app-primary);
-}
-
-.team-table-card {
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  border-radius: 16px;
-  background: var(--app-bg-panel);
-}
-
-.team-table-card .team-empty-state {
-  min-height: 220px;
-  border: 0;
-  border-radius: 0;
 }
 
 .team-empty-state {

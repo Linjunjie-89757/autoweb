@@ -17,7 +17,7 @@ export interface AiProviderConnectionItem {
   id: number
   workspaceCode: string
   workspaceName: string
-  providerType: AiProviderType
+  providerType?: AiProviderType | null
   connectionName: string
   protocolType: string
   baseUrl: string
@@ -33,7 +33,7 @@ export interface AiProviderConnectionItem {
 
 export interface SaveAiProviderConnectionPayload {
   workspaceCode?: string
-  providerType: AiProviderType
+  providerType?: AiProviderType
   connectionName: string
   protocolType: string
   baseUrl: string

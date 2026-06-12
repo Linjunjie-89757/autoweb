@@ -107,6 +107,8 @@ function resetForm() {
 }
 
 function submit() {
+  form.providerType = selectedBrand.value.id
+
   const error = validateAiConnectionForm(form, props.mode)
   if (error) {
     formError.value = error
@@ -116,6 +118,7 @@ function submit() {
   formError.value = ''
   emit('submit', buildSaveAiConnectionPayload(form, {
     includeApiKey: props.mode === 'create' || Boolean(form.apiKey.trim()),
+    includeProviderType: props.mode === 'create',
   }))
 }
 

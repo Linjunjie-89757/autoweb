@@ -49,7 +49,7 @@ export function createDefaultAiConnectionForm(workspaceCode = 'ALL'): AiConnecti
 export function createAiConnectionFormFromItem(item: AiProviderConnectionItem): AiConnectionForm {
   return {
     workspaceCode: item.workspaceCode || 'ALL',
-    providerType: item.providerType,
+    providerType: item.providerType || 'custom',
     connectionName: item.connectionName,
     protocolType: item.protocolType || 'OPENAI_COMPATIBLE_CHAT',
     baseUrl: item.baseUrl,
@@ -63,17 +63,20 @@ export function createAiConnectionFormFromItem(item: AiProviderConnectionItem): 
 
 export function buildSaveAiConnectionPayload(
   form: AiConnectionForm,
-  options: { includeApiKey: boolean },
+  options: { includeApiKey: boolean; includeProviderType: boolean },
 ): SaveAiProviderConnectionPayload {
   const payload: SaveAiProviderConnectionPayload = {
     workspaceCode: form.workspaceCode.trim() || 'ALL',
-    providerType: form.providerType,
     connectionName: form.connectionName.trim(),
     protocolType: form.protocolType,
     baseUrl: form.baseUrl.trim(),
     requestTimeoutSeconds: form.requestTimeoutSeconds,
     modelName: form.modelName.trim(),
     status: form.status,
+  }
+
+  if (options.includeProviderType) {
+    payload.providerType = form.providerType
   }
 
   if (options.includeApiKey && !form.usingSavedApiKey && form.apiKey.trim()) {

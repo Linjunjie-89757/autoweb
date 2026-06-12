@@ -227,7 +227,11 @@ export const aiProviderBrands: AiProviderBrand[] = [
 ]
 
 export function inferAiProviderBrand(provider: AiProviderConnectionItem) {
-  return aiProviderBrands.find((brand) => brand.id === provider.providerType) as AiProviderBrand
+  return (
+    aiProviderBrands.find((brand) => brand.id === provider.providerType)
+    ?? aiProviderBrands.find((brand) => brand.id === 'custom')
+    ?? aiProviderBrands[0]
+  )
 }
 
 export function hasAiProviderBrandConnection(brand: AiProviderBrand, providers: AiProviderConnectionItem[]) {

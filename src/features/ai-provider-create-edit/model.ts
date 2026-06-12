@@ -42,7 +42,7 @@ export function createDefaultAiProviderForm(workspaceCode = 'ALL'): AiProviderFo
 export function createAiProviderFormFromItem(item: AiProviderConnectionItem): AiProviderForm {
   return {
     workspaceCode: item.workspaceCode || 'ALL',
-    providerType: item.providerType,
+    providerType: item.providerType || 'custom',
     connectionName: item.connectionName,
     protocolType: item.protocolType || 'OPENAI_COMPATIBLE_CHAT',
     baseUrl: item.baseUrl,

@@ -547,15 +547,17 @@ watch(memberWorkspaceCode, () => {
 <style scoped>
 .workspace-settings-panel {
   display: flex;
+  min-height: 100%;
+  min-width: 0;
   flex-direction: column;
-  gap: var(--app-space-5);
+  gap: 28px;
 }
 
 .settings-panel-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--app-space-4);
+  gap: 20px;
 }
 
 .settings-panel-header__actions {
@@ -567,56 +569,70 @@ watch(memberWorkspaceCode, () => {
 
 .settings-panel-header h2 {
   margin: 0;
-  font-size: var(--app-font-size-xl);
-  line-height: 26px;
+  color: var(--app-text-primary);
+  font-size: var(--app-font-size-md);
+  font-weight: 600;
+  line-height: 24px;
 }
 
 .settings-panel-header p {
-  margin: var(--app-space-1) 0 0;
+  max-width: 720px;
+  margin: 2px 0 0;
   color: var(--app-text-muted);
   font-size: var(--app-font-size-sm);
+  line-height: var(--app-line-height-md);
 }
 
 .settings-stat-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--app-space-3);
+  gap: 16px;
 }
 
 .settings-stat {
   display: flex;
+  min-height: 86px;
   min-width: 0;
   flex-direction: column;
-  gap: var(--app-space-1);
-  padding: var(--app-space-3);
+  justify-content: center;
+  gap: 6px;
+  padding: 16px 20px;
   border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
-  background: var(--app-bg-subtle);
+  border-radius: 16px;
+  background: var(--app-bg-panel);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 3%);
 }
 
 .settings-stat span {
   color: var(--app-text-muted);
   font-size: var(--app-font-size-xs);
+  line-height: var(--app-line-height-xs);
 }
 
 .settings-stat strong {
   color: var(--app-text-primary);
-  font-size: var(--app-font-size-xl);
-  line-height: 26px;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 30px;
 }
 
 .settings-panel-block {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: var(--app-space-3);
+  gap: 16px;
+  padding: 20px;
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  background: var(--app-bg-panel);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 3%);
 }
 
 .settings-panel-block__header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--app-space-3);
+  gap: 16px;
 }
 
 .settings-panel-block__actions {
@@ -630,8 +646,9 @@ watch(memberWorkspaceCode, () => {
 .settings-panel-block h3 {
   margin: 0;
   color: var(--app-text-primary);
-  font-size: var(--app-font-size-lg);
-  line-height: var(--app-line-height-lg);
+  font-size: var(--app-font-size-md);
+  font-weight: 600;
+  line-height: 24px;
 }
 
 .settings-panel-block__description {
@@ -657,6 +674,9 @@ watch(memberWorkspaceCode, () => {
 
 .settings-table {
   width: 100%;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .workspace-member-select {

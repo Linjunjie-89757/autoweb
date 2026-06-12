@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { Avatar, Delete, Edit, OfficeBuilding, Plus, RefreshRight, Suitcase, User, UserFilled } from '@element-plus/icons-vue'
+import { Delete, Edit, Plus, RefreshRight } from '@element-plus/icons-vue'
+import { Edit2, Package, Target, User, Users } from '@lucide/vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import {
@@ -693,9 +694,9 @@ watch(memberWorkspaceCode, () => {
           <div class="workspace-card-main">
             <div class="workspace-card-head">
               <div class="workspace-card-icon" :class="`is-${normalizeWorkspaceType(workspace)}`" aria-hidden="true">
-                <el-icon v-if="normalizeWorkspaceType(workspace) === 'team'"><UserFilled /></el-icon>
-                <el-icon v-else-if="normalizeWorkspaceType(workspace) === 'product'"><Suitcase /></el-icon>
-                <el-icon v-else><OfficeBuilding /></el-icon>
+                <Users v-if="normalizeWorkspaceType(workspace) === 'team'" :size="20" />
+                <Target v-else-if="normalizeWorkspaceType(workspace) === 'product'" :size="20" />
+                <Package v-else :size="20" />
               </div>
               <div class="workspace-card-title">
                 <div class="workspace-card-name-row">
@@ -713,24 +714,24 @@ watch(memberWorkspaceCode, () => {
                 aria-label="编辑空间"
                 @click="openEditWorkspaceDialog(workspace)"
               >
-                <el-icon><Edit /></el-icon>
+                <Edit2 :size="16" />
               </button>
             </div>
           </div>
 
           <footer class="workspace-card-meta">
             <span class="workspace-type-badge" :class="`is-${normalizeWorkspaceType(workspace)}`">
-              <el-icon v-if="normalizeWorkspaceType(workspace) === 'team'"><UserFilled /></el-icon>
-              <el-icon v-else-if="normalizeWorkspaceType(workspace) === 'product'"><Suitcase /></el-icon>
-              <el-icon v-else><OfficeBuilding /></el-icon>
+              <Users v-if="normalizeWorkspaceType(workspace) === 'team'" :size="13" />
+              <Target v-else-if="normalizeWorkspaceType(workspace) === 'product'" :size="13" />
+              <Package v-else :size="13" />
               {{ getWorkspaceTypeLabel(workspace) }}
             </span>
             <span>
-              <el-icon><User /></el-icon>
+              <User :size="13" />
               {{ getWorkspaceOwnerLabel(workspace) }} (负责人)
             </span>
             <span>
-              <el-icon><Avatar /></el-icon>
+              <Users :size="13" />
               {{ getWorkspaceMemberCount(workspace) }} 名成员
             </span>
           </footer>
@@ -1570,8 +1571,10 @@ watch(memberWorkspaceCode, () => {
   color: var(--app-text-inverse);
 }
 
-.workspace-card-icon .el-icon {
-  font-size: 20px;
+.workspace-card-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
 }
 
 .workspace-card-icon.is-team {
@@ -1662,6 +1665,12 @@ watch(memberWorkspaceCode, () => {
   transition: background-color 180ms ease, color 180ms ease;
 }
 
+.workspace-card-actions button svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2;
+}
+
 .workspace-card-actions button:hover {
   background: var(--app-primary-soft);
   color: var(--app-primary);
@@ -1684,9 +1693,11 @@ watch(memberWorkspaceCode, () => {
   line-height: 1.35;
 }
 
-.workspace-card-meta .el-icon {
+.workspace-card-meta svg {
+  width: 13px;
+  height: 13px;
   flex: 0 0 auto;
-  font-size: 13px;
+  stroke-width: 2;
 }
 
 .workspace-type-badge {

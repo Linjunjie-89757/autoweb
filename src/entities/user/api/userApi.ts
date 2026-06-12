@@ -1,6 +1,6 @@
 import { httpGet, httpPost, httpPut, type ApiResponse } from '@/shared/api/request'
 
-import type { ResetUserPasswordResponse, UpdateUserPayload, UserItem } from '../model/types'
+import type { CreateUserPayload, ResetUserPasswordResponse, UpdateUserPayload, UserItem } from '../model/types'
 
 function workspaceHeaders(workspaceCode = 'ALL') {
   return {
@@ -39,6 +39,18 @@ export const userApi = {
     })
 
     return unwrapUserResponse(payload)
+  },
+
+  async createUser(payload: CreateUserPayload) {
+    const response = await httpPost<ApiResponse<UserItem>, CreateUserPayload>(
+      '/users',
+      payload,
+      {
+        headers: workspaceHeaders('ALL'),
+      },
+    )
+
+    return unwrapSingleUserResponse(response, '用户创建失败')
   },
 
   async updateUser(userId: number, payload: UpdateUserPayload) {

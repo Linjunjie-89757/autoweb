@@ -11,6 +11,14 @@ export interface UserItem {
   workspaceNames: string[]
 }
 
+export interface CreateUserPayload {
+  username: string
+  email: string
+  displayName: string
+  roleCode: string
+  workspaceCodes: string[]
+}
+
 export interface UpdateUserPayload {
   email: string
   displayName: string

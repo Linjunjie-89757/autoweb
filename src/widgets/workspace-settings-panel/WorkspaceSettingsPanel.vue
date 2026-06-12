@@ -16,6 +16,7 @@ import {
   getUserDisplayName,
   getUserRoleLabel,
   getUserStatusMeta,
+  type CreateUserPayload,
   type UpdateUserPayload,
   type UserItem,
   userApi,
@@ -36,8 +37,10 @@ import AppLoadingState from '@/shared/ui/app-loading-state/AppLoadingState.vue'
 import AppStatusBadge from '@/shared/ui/app-status-badge/AppStatusBadge.vue'
 
 type PanelMode = 'workspace' | 'team'
+type UserDialogMode = 'create' | 'edit'
 
 interface UserEditForm {
+  username: string
   email: string
   displayName: string
   roleCode: string
@@ -74,11 +77,13 @@ const memberDialogVisible = ref(false)
 const memberDialogMode = ref<WorkspaceMemberDialogMode>('create')
 const editingMember = ref<WorkspaceMemberItem | null>(null)
 const userDialogVisible = ref(false)
+const userDialogMode = ref<UserDialogMode>('edit')
 const editingUser = ref<UserItem | null>(null)
 const savingUser = ref(false)
 const mutatingUserIds = ref<Set<number>>(new Set())
 const deletingMemberIds = ref<Set<number>>(new Set())
 const userForm = ref<UserEditForm>({
+  username: '',
   email: '',
   displayName: '',
   roleCode: 'MEMBER',
@@ -261,6 +266,35 @@ function buildUserUpdatePayload(user: UserItem, overrides: Partial<UpdateUserPay
   }
 }
 
+function buildUserCreatePayload(): CreateUserPayload {
+  return {
+    username: userForm.value.username.trim(),
+    email: userForm.value.email.trim(),
+    displayName: userForm.value.displayName.trim(),
+    roleCode: userForm.value.roleCode,
+    workspaceCodes: normalizeWorkspaceCodes(userForm.value.workspaceCodes),
+  }
+}
+
+function openUserCreate() {
+  if (!canManageUsers.value) {
+    ElMessage.warning('当前账号无用户维护权限')
+    return
+  }
+
+  userDialogMode.value = 'create'
+  editingUser.value = null
+  userForm.value = {
+    username: '',
+    email: '',
+    displayName: '',
+    roleCode: 'MEMBER',
+    status: 1,
+    workspaceCodes: [],
+  }
+  userDialogVisible.value = true
+}
+
 function openUserEdit(row: UserItem) {
   if (!canMutateUser(row)) {
     ElMessage.warning(getUserMutableReason(row))
@@ -268,7 +302,9 @@ function openUserEdit(row: UserItem) {
   }
 
   editingUser.value = row
+  userDialogMode.value = 'edit'
   userForm.value = {
+    username: row.username || '',
     email: row.email || '',
     displayName: getUserDisplayName(row) === '-' ? '' : getUserDisplayName(row),
     roleCode: row.roleCode || 'MEMBER',
@@ -279,10 +315,10 @@ function openUserEdit(row: UserItem) {
 }
 
 async function submitUserEdit() {
-  if (!editingUser.value) {
+  if (userDialogMode.value === 'create' && !userForm.value.username.trim()) {
+    ElMessage.error('请填写账号')
     return
   }
-
   if (!userForm.value.email.trim()) {
     ElMessage.error('请填写邮箱')
     return
@@ -298,14 +334,19 @@ async function submitUserEdit() {
 
   savingUser.value = true
   try {
-    await userApi.updateUser(editingUser.value.id, buildUserUpdatePayload(editingUser.value, {
-      email: userForm.value.email.trim(),
-      displayName: userForm.value.displayName.trim(),
-      roleCode: userForm.value.roleCode,
-      status: userForm.value.status,
-      workspaceCodes: normalizeWorkspaceCodes(userForm.value.workspaceCodes),
-    }))
-    ElMessage.success('用户信息已更新')
+    if (userDialogMode.value === 'create') {
+      await userApi.createUser(buildUserCreatePayload())
+      ElMessage.success('用户已创建，默认密码为 zhyt@2025')
+    } else if (editingUser.value) {
+      await userApi.updateUser(editingUser.value.id, buildUserUpdatePayload(editingUser.value, {
+        email: userForm.value.email.trim(),
+        displayName: userForm.value.displayName.trim(),
+        roleCode: userForm.value.roleCode,
+        status: userForm.value.status,
+        workspaceCodes: normalizeWorkspaceCodes(userForm.value.workspaceCodes),
+      }))
+      ElMessage.success('用户信息已更新')
+    }
     userDialogVisible.value = false
     await loadUsers()
   } catch (error) {
@@ -839,9 +880,20 @@ watch(memberWorkspaceCode, () => {
     <div class="settings-panel-block settings-panel-block--users">
       <div class="settings-panel-block__header">
         <h3>用户账号</h3>
-        <span v-if="userErrorMessage && users.length > 0" class="settings-inline-error">
-          {{ userErrorMessage }}
-        </span>
+        <div class="settings-panel-block__actions">
+          <span v-if="userErrorMessage && users.length > 0" class="settings-inline-error">
+            {{ userErrorMessage }}
+          </span>
+          <AppButton
+            size="small"
+            type="primary"
+            :icon="Plus"
+            :disabled="!canManageUsers"
+            @click="openUserCreate"
+          >
+            新增用户
+          </AppButton>
+        </div>
       </div>
 
       <AppLoadingState v-if="userLoading && users.length === 0" text="正在加载用户账号" />
@@ -978,10 +1030,14 @@ watch(memberWorkspaceCode, () => {
 
     <AppDialog
       v-model="userDialogVisible"
-      title="编辑用户"
+      :title="userDialogMode === 'create' ? '新增用户' : '编辑用户'"
       width="560px"
     >
       <div class="user-edit-dialog">
+        <label v-if="userDialogMode === 'create'" class="user-edit-dialog__field is-full">
+          <span>账号 *</span>
+          <el-input v-model="userForm.username" placeholder="请输入登录账号" />
+        </label>
         <label class="user-edit-dialog__field">
           <span>姓名 *</span>
           <el-input v-model="userForm.displayName" placeholder="请输入姓名" />
@@ -998,7 +1054,7 @@ watch(memberWorkspaceCode, () => {
             <option v-if="isCurrentSuperAdmin" value="PLATFORM_ADMIN">平台管理员</option>
           </select>
         </label>
-        <label class="user-edit-dialog__field">
+        <label v-if="userDialogMode === 'edit'" class="user-edit-dialog__field">
           <span>状态</span>
           <select v-model.number="userForm.status" class="user-edit-dialog__select">
             <option :value="1">启用</option>

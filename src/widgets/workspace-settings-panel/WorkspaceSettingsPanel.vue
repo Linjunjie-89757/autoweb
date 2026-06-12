@@ -91,6 +91,45 @@ const panelDescription = computed(() => (
 ))
 const visibleStats = computed(() => (isTeamMode.value ? teamStats.value : workspaceStats.value))
 
+function workspaceDisplayName(workspace: WorkspaceItem) {
+  return workspace.workspaceName || workspace.name || workspace.workspaceCode || workspace.code || '-'
+}
+
+function workspaceDisplayCode(workspace: WorkspaceItem) {
+  return workspace.workspaceCode || workspace.code || '-'
+}
+
+function normalizeWorkspaceType(workspace: WorkspaceItem) {
+  const type = String(workspace.workspaceType || '').toLowerCase()
+  if (type.includes('team')) {
+    return 'team'
+  }
+  if (type.includes('product')) {
+    return 'product'
+  }
+  return 'project'
+}
+
+function getWorkspaceTypeLabel(workspace: WorkspaceItem) {
+  const type = normalizeWorkspaceType(workspace)
+  if (type === 'team') {
+    return '团队空间'
+  }
+  if (type === 'product') {
+    return '产品空间'
+  }
+  return '项目空间'
+}
+
+function getWorkspaceOwnerLabel(workspace: WorkspaceItem) {
+  return workspace.ownerName || '未设置负责人'
+}
+
+function getUserInitial(user: UserItem | WorkspaceMemberItem) {
+  const name = 'displayName' in user ? user.displayName : ''
+  return (name || user.username || '-').slice(0, 1).toUpperCase()
+}
+
 function getWorkspaceStatusMeta(status?: number | string | null) {
   if (Number(status) === 0) {
     return { label: '停用', tone: 'danger' as const }
@@ -345,6 +384,48 @@ watch(memberWorkspaceCode, () => {
         </template>
       </AppEmptyState>
 
+      <div v-else-if="!isTeamMode" class="workspace-card-grid">
+        <article
+          v-for="workspace in businessWorkspaces"
+          :key="workspaceDisplayCode(workspace)"
+          class="workspace-config-card"
+          :class="[{ 'is-disabled': Number(workspace.status) === 0 }, `is-${normalizeWorkspaceType(workspace)}`]"
+        >
+          <div class="workspace-card-main">
+            <div class="workspace-card-head">
+              <div class="workspace-card-icon">
+                {{ workspaceDisplayName(workspace).slice(0, 1).toUpperCase() }}
+              </div>
+              <div class="workspace-card-title">
+                <div class="workspace-card-name-row">
+                  <h3>{{ workspaceDisplayName(workspace) }}</h3>
+                  <AppStatusBadge
+                    :label="getWorkspaceStatusMeta(workspace.status).label"
+                    :tone="getWorkspaceStatusMeta(workspace.status).tone"
+                  />
+                </div>
+                <p>{{ workspace.description || '暂无空间说明' }}</p>
+              </div>
+            </div>
+            <div class="workspace-card-actions">
+              <button
+                type="button"
+                aria-label="编辑空间"
+                @click="openEditWorkspaceDialog(workspace)"
+              >
+                <el-icon><Edit /></el-icon>
+              </button>
+            </div>
+          </div>
+
+          <footer class="workspace-card-meta">
+            <span>{{ getWorkspaceTypeLabel(workspace) }}</span>
+            <span>{{ getWorkspaceOwnerLabel(workspace) }}</span>
+            <span>{{ workspaceDisplayCode(workspace) }}</span>
+          </footer>
+        </article>
+      </div>
+
       <el-table v-else v-loading="workspaceLoading" :data="businessWorkspaces" class="settings-table" row-key="workspaceCode">
         <el-table-column prop="workspaceName" label="空间名称" min-width="180" show-overflow-tooltip />
         <el-table-column prop="workspaceCode" label="空间编码" min-width="130" show-overflow-tooltip />
@@ -458,7 +539,13 @@ watch(memberWorkspaceCode, () => {
       <el-table v-else v-loading="memberLoading" :data="members" class="settings-table" row-key="id">
         <el-table-column label="姓名" min-width="140" show-overflow-tooltip>
           <template #default="{ row }: { row: WorkspaceMemberItem }">
-            {{ row.displayName || row.username || '-' }}
+            <div class="team-member-cell">
+              <div class="team-avatar">{{ getUserInitial(row) }}</div>
+              <div>
+                <strong>{{ row.displayName || row.username || '-' }}</strong>
+                <p>{{ row.username }} · {{ row.email || '-' }}</p>
+              </div>
+            </div>
           </template>
         </el-table-column>
         <el-table-column prop="username" label="账号" min-width="130" show-overflow-tooltip />
@@ -534,7 +621,13 @@ watch(memberWorkspaceCode, () => {
       <el-table v-else v-loading="userLoading" :data="users" class="settings-table" row-key="id">
         <el-table-column label="姓名" min-width="140" show-overflow-tooltip>
           <template #default="{ row }: { row: UserItem }">
-            {{ getUserDisplayName(row) }}
+            <div class="team-member-cell">
+              <div class="team-avatar">{{ getUserInitial(row) }}</div>
+              <div>
+                <strong>{{ getUserDisplayName(row) }}</strong>
+                <p>{{ row.username }} · {{ row.email || '-' }}</p>
+              </div>
+            </div>
           </template>
         </el-table-column>
         <el-table-column prop="username" label="账号" min-width="130" show-overflow-tooltip />
@@ -599,7 +692,13 @@ watch(memberWorkspaceCode, () => {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: var(--app-space-2);
+  gap: 10px;
+}
+
+.settings-panel-header__actions :deep(.el-button) {
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 12px;
 }
 
 .settings-panel-header h2 {
@@ -626,29 +725,46 @@ watch(memberWorkspaceCode, () => {
 
 .settings-stat {
   display: flex;
-  min-height: 86px;
   min-width: 0;
   flex-direction: column;
-  justify-content: center;
-  gap: 6px;
+  gap: 8px;
   padding: 16px 20px;
   border: 1px solid var(--app-border);
   border-radius: 16px;
   background: var(--app-bg-panel);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 3%);
 }
 
 .settings-stat span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   color: var(--app-text-muted);
   font-size: var(--app-font-size-xs);
-  line-height: var(--app-line-height-xs);
+  line-height: 1.35;
 }
 
 .settings-stat strong {
   color: var(--app-text-primary);
   font-size: 24px;
   font-weight: 700;
-  line-height: 30px;
+  line-height: 1.2;
+}
+
+.settings-stat:nth-child(1) strong {
+  color: var(--app-primary);
+}
+
+.settings-stat:nth-child(2) strong {
+  color: var(--app-success);
+}
+
+.settings-stat:nth-child(3) strong {
+  color: var(--app-purple);
+}
+
+.settings-stat:nth-child(4) strong {
+  color: var(--app-warning);
 }
 
 .settings-panel-block {
@@ -657,17 +773,20 @@ watch(memberWorkspaceCode, () => {
   flex-direction: column;
   order: 2;
   gap: 16px;
-  padding: 20px;
+  padding: 0;
   border: 1px solid var(--app-border);
   border-radius: 16px;
   background: var(--app-bg-panel);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 3%);
+  overflow: hidden;
+}
+
+.settings-panel-block > :not(.settings-panel-block__header) {
+  margin: 0 20px 20px;
 }
 
 .workspace-settings-panel.is-workspace-mode .settings-panel-block--workspaces,
 .workspace-settings-panel.is-team-mode .settings-panel-block--users {
   order: 1;
-  border-left: 3px solid var(--app-primary);
 }
 
 .workspace-settings-panel.is-team-mode .settings-panel-block--members {
@@ -684,6 +803,9 @@ watch(memberWorkspaceCode, () => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  min-height: 58px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--app-border-soft);
 }
 
 .settings-panel-block__actions {
@@ -697,9 +819,9 @@ watch(memberWorkspaceCode, () => {
 .settings-panel-block h3 {
   margin: 0;
   color: var(--app-text-primary);
-  font-size: var(--app-font-size-md);
+  font-size: 14px;
   font-weight: 600;
-  line-height: 24px;
+  line-height: 1.45;
 }
 
 .settings-panel-block__description {
@@ -725,9 +847,204 @@ watch(memberWorkspaceCode, () => {
 
 .settings-table {
   width: 100%;
-  border: 1px solid var(--app-border);
+  border: 1px solid var(--app-border-soft);
   border-radius: 12px;
   overflow: hidden;
+}
+
+.settings-table :deep(.el-table__header th) {
+  height: 44px;
+  background: var(--app-bg-muted);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+}
+
+.settings-table :deep(.el-table__row) {
+  height: 58px;
+}
+
+.workspace-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.workspace-config-card {
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  background: var(--app-bg-panel);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.workspace-config-card:hover {
+  border-color: var(--app-border-strong);
+  box-shadow: var(--app-shadow-card-hover);
+  transform: translateY(-1px);
+}
+
+.workspace-config-card.is-disabled {
+  opacity: 0.68;
+}
+
+.workspace-card-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.workspace-card-head {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.workspace-card-icon {
+  display: inline-flex;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3b82f6, var(--app-primary));
+  color: var(--app-text-inverse);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.workspace-config-card.is-team .workspace-card-icon {
+  background: linear-gradient(135deg, #22c55e, var(--app-success));
+}
+
+.workspace-config-card.is-product .workspace-card-icon {
+  background: linear-gradient(135deg, #a855f7, var(--app-purple));
+}
+
+.workspace-card-title {
+  min-width: 0;
+  flex: 1;
+}
+
+.workspace-card-name-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.workspace-card-name-row h3 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-card-title p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.workspace-card-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.workspace-config-card:hover .workspace-card-actions {
+  opacity: 1;
+}
+
+.workspace-card-actions button {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--app-text-muted);
+  cursor: pointer;
+}
+
+.workspace-card-actions button:hover {
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+}
+
+.workspace-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.workspace-card-meta span {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.team-member-cell {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+}
+
+.team-avatar {
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.team-member-cell strong {
+  display: block;
+  overflow: hidden;
+  color: var(--app-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-member-cell p {
+  margin: 3px 0 0;
+  overflow: hidden;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workspace-member-select {

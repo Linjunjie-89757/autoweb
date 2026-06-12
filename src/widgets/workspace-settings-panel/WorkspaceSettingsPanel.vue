@@ -1242,7 +1242,15 @@ watch(memberWorkspaceCode, () => {
         </label>
         <label class="user-edit-dialog__field">
           <span>平台角色 <i>*</i></span>
-          <select v-model="userForm.roleCode" class="user-edit-dialog__select">
+          <el-radio-group
+            v-if="userDialogMode === 'create'"
+            v-model="userForm.roleCode"
+            class="user-edit-dialog__role-group"
+          >
+            <el-radio v-if="isCurrentSuperAdmin" value="PLATFORM_ADMIN">平台管理员</el-radio>
+            <el-radio value="MEMBER">成员</el-radio>
+          </el-radio-group>
+          <select v-else v-model="userForm.roleCode" class="user-edit-dialog__select">
             <option value="MEMBER">成员</option>
             <option v-if="isCurrentSuperAdmin" value="ADMIN">管理员</option>
             <option v-if="isCurrentSuperAdmin" value="PLATFORM_ADMIN">平台管理员</option>
@@ -2472,6 +2480,26 @@ watch(memberWorkspaceCode, () => {
   box-shadow: 0 0 0 3px var(--app-primary-soft);
 }
 
+.user-edit-dialog__role-group {
+  display: flex;
+  min-height: var(--app-control-height-md);
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 0 2px;
+}
+
+.user-edit-dialog__role-group :deep(.el-radio) {
+  margin-right: 0;
+  color: var(--app-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.user-edit-dialog__role-group :deep(.el-radio__label) {
+  padding-left: 8px;
+}
+
 .user-edit-dialog__workspace-select {
   width: 100%;
 }
@@ -2504,10 +2532,10 @@ watch(memberWorkspaceCode, () => {
   grid-column: 1 / -1;
   margin: -2px 0 0;
   padding: 10px 12px;
-  border: 1px solid var(--app-border-soft);
+  border: 1px solid rgb(59 130 246 / 0.18);
   border-radius: var(--app-radius-md);
-  background: var(--app-bg-subtle);
-  color: var(--app-text-muted);
+  background: #eff6ff;
+  color: #1d4ed8;
   font-size: var(--app-font-size-xs);
   line-height: 1.5;
 }

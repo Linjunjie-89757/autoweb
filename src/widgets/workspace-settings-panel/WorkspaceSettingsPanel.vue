@@ -123,7 +123,12 @@ const teamStats = computed(() => [
   { label: '当前空间成员', value: members.value.length, tone: 'orange', icon: User },
 ])
 const isTeamMode = computed(() => props.mode === 'team')
-const isCreatePlatformAdmin = computed(() => userDialogMode.value === 'create' && userForm.value.roleCode === 'PLATFORM_ADMIN')
+const platformAdminRoleValue = computed(() => (
+  userDialogMode.value === 'edit' && editingUser.value?.roleCode === 'ADMIN'
+    ? 'ADMIN'
+    : 'PLATFORM_ADMIN'
+))
+const isPlatformAdminSelected = computed(() => userForm.value.roleCode === platformAdminRoleValue.value)
 const canManageUsers = computed(() => {
   const roleCode = String(currentUser.value?.roleCode || '').toUpperCase()
   return ['SUPER_ADMIN', 'PLATFORM_ADMIN', 'ADMIN'].includes(roleCode)
@@ -446,6 +451,10 @@ function parseBatchUsers() {
 }
 
 async function submitUserEdit() {
+  const workspaceCodes = isPlatformAdminSelected.value
+    ? []
+    : normalizeWorkspaceCodes(userForm.value.workspaceCodes)
+
   if (userDialogMode.value === 'create' && !userForm.value.username.trim()) {
     ElMessage.error('请填写账号')
     return
@@ -471,7 +480,7 @@ async function submitUserEdit() {
         email: userForm.value.email.trim(),
         displayName: userForm.value.displayName.trim(),
         roleCode: userForm.value.roleCode,
-        workspaceCodes: normalizeWorkspaceCodes(userForm.value.workspaceCodes),
+        workspaceCodes,
       })
       ElMessage.success('用户已创建')
     } else if (editingUser.value) {
@@ -480,7 +489,7 @@ async function submitUserEdit() {
         displayName: userForm.value.displayName.trim(),
         roleCode: userForm.value.roleCode,
         status: userForm.value.status,
-        workspaceCodes: normalizeWorkspaceCodes(userForm.value.workspaceCodes),
+        workspaceCodes,
       }))
       ElMessage.success('用户信息已更新')
     }
@@ -814,7 +823,7 @@ watch(memberWorkspaceCode, () => {
 watch(
   () => userForm.value.roleCode,
   (roleCode) => {
-    if (userDialogMode.value === 'create' && roleCode === 'PLATFORM_ADMIN' && userForm.value.workspaceCodes.length > 0) {
+    if (roleCode === platformAdminRoleValue.value && userForm.value.workspaceCodes.length > 0) {
       userForm.value.workspaceCodes = []
     }
   },
@@ -1252,19 +1261,10 @@ watch(
         </label>
         <label class="user-edit-dialog__field">
           <span>平台角色 <i>*</i></span>
-          <el-radio-group
-            v-if="userDialogMode === 'create'"
-            v-model="userForm.roleCode"
-            class="user-edit-dialog__role-group"
-          >
-            <el-radio v-if="isCurrentSuperAdmin" value="PLATFORM_ADMIN">平台管理员</el-radio>
+          <el-radio-group v-model="userForm.roleCode" class="user-edit-dialog__role-group">
+            <el-radio v-if="isCurrentSuperAdmin" :value="platformAdminRoleValue">平台管理员</el-radio>
             <el-radio value="MEMBER">成员</el-radio>
           </el-radio-group>
-          <select v-else v-model="userForm.roleCode" class="user-edit-dialog__select">
-            <option value="MEMBER">成员</option>
-            <option v-if="isCurrentSuperAdmin" value="ADMIN">管理员</option>
-            <option v-if="isCurrentSuperAdmin" value="PLATFORM_ADMIN">平台管理员</option>
-          </select>
         </label>
         <label v-if="userDialogMode === 'edit'" class="user-edit-dialog__field">
           <span>状态</span>
@@ -1273,7 +1273,7 @@ watch(
             <option :value="0">停用</option>
           </select>
         </label>
-        <template v-if="!isCreatePlatformAdmin">
+        <template v-if="!isPlatformAdminSelected">
           <label class="user-edit-dialog__field is-full">
             <span>可访问空间</span>
             <el-select
@@ -1296,7 +1296,7 @@ watch(
             </el-select>
           </label>
         </template>
-        <div v-if="isCreatePlatformAdmin" class="user-edit-dialog__field is-full">
+        <div v-if="isPlatformAdminSelected" class="user-edit-dialog__field is-full">
           <span>可访问空间</span>
           <div class="user-edit-dialog__readonly-note">平台管理员默认拥有所有空间权限，无需单独分配</div>
         </div>

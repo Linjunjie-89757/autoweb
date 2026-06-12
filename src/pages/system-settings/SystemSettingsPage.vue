@@ -47,7 +47,10 @@ const placeholderMeta = computed(() => {
 
       <main class="system-settings-page__content">
         <AiConnectionPoolPanel v-if="activeTab === 'aiConnection'" />
-        <WorkspaceSettingsPanel v-else-if="activeTab === 'workspace' || activeTab === 'team'" />
+        <WorkspaceSettingsPanel
+          v-else-if="activeTab === 'workspace' || activeTab === 'team'"
+          :mode="activeTab === 'team' ? 'team' : 'workspace'"
+        />
         <SettingsPlaceholderPanel
           v-else
           :title="placeholderMeta?.title || '设置项暂未接入'"

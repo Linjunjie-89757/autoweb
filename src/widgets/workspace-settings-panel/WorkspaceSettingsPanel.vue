@@ -32,6 +32,17 @@ import AppEmptyState from '@/shared/ui/app-empty-state/AppEmptyState.vue'
 import AppLoadingState from '@/shared/ui/app-loading-state/AppLoadingState.vue'
 import AppStatusBadge from '@/shared/ui/app-status-badge/AppStatusBadge.vue'
 
+type PanelMode = 'workspace' | 'team'
+
+const props = withDefaults(
+  defineProps<{
+    mode?: PanelMode
+  }>(),
+  {
+    mode: 'workspace',
+  },
+)
+
 const workspaces = ref<WorkspaceItem[]>([])
 const users = ref<UserItem[]>([])
 const members = ref<WorkspaceMemberItem[]>([])
@@ -64,6 +75,21 @@ const workspaceStats = computed(() => [
   { label: '用户总数', value: users.value.length },
   { label: '启用用户', value: users.value.filter((item) => Number(item.status) === 1).length },
 ])
+
+const teamStats = computed(() => [
+  { label: '用户总数', value: users.value.length },
+  { label: '启用用户', value: users.value.filter((item) => Number(item.status) === 1).length },
+  { label: '业务空间', value: businessWorkspaces.value.length },
+  { label: '当前空间成员', value: members.value.length },
+])
+const isTeamMode = computed(() => props.mode === 'team')
+const panelTitle = computed(() => (isTeamMode.value ? '用户管理' : '工作空间设置'))
+const panelDescription = computed(() => (
+  isTeamMode.value
+    ? '以用户账号为主线查看平台用户、空间成员与工作空间关联。'
+    : '以工作空间为主线查看和维护平台空间、空间成员与用户概览。'
+))
+const visibleStats = computed(() => (isTeamMode.value ? teamStats.value : workspaceStats.value))
 
 function getWorkspaceStatusMeta(status?: number | string | null) {
   if (Number(status) === 0) {
@@ -252,11 +278,11 @@ watch(memberWorkspaceCode, () => {
 </script>
 
 <template>
-  <section class="workspace-settings-panel">
+  <section class="workspace-settings-panel" :class="`is-${mode}-mode`">
     <header class="settings-panel-header">
       <div>
-        <h2>工作空间设置</h2>
-        <p>查看和维护平台工作空间、空间成员与用户账号概览。</p>
+        <h2>{{ panelTitle }}</h2>
+        <p>{{ panelDescription }}</p>
       </div>
       <div class="settings-panel-header__actions">
         <AppButton
@@ -266,18 +292,27 @@ watch(memberWorkspaceCode, () => {
         >
           刷新
         </AppButton>
-        <AppButton type="primary" :icon="Plus" @click="openCreateWorkspaceDialog">新增空间</AppButton>
+        <AppButton
+          v-if="isTeamMode"
+          type="primary"
+          :icon="Plus"
+          :disabled="!memberWorkspaceCode"
+          @click="openCreateMemberDialog"
+        >
+          添加成员
+        </AppButton>
+        <AppButton v-else type="primary" :icon="Plus" @click="openCreateWorkspaceDialog">新增空间</AppButton>
       </div>
     </header>
 
     <div class="settings-stat-grid">
-      <div v-for="item in workspaceStats" :key="item.label" class="settings-stat">
+      <div v-for="item in visibleStats" :key="item.label" class="settings-stat">
         <span>{{ item.label }}</span>
         <strong>{{ item.value }}</strong>
       </div>
     </div>
 
-    <div class="settings-panel-block">
+    <div class="settings-panel-block settings-panel-block--workspaces">
       <div class="settings-panel-block__header">
         <h3>工作空间</h3>
         <div class="settings-panel-block__actions">
@@ -357,7 +392,7 @@ watch(memberWorkspaceCode, () => {
       </el-table>
     </div>
 
-    <div class="settings-panel-block">
+    <div class="settings-panel-block settings-panel-block--members">
       <div class="settings-panel-block__header">
         <div>
           <h3>成员管理</h3>
@@ -470,7 +505,7 @@ watch(memberWorkspaceCode, () => {
       </el-table>
     </div>
 
-    <div class="settings-panel-block">
+    <div class="settings-panel-block settings-panel-block--users">
       <div class="settings-panel-block__header">
         <h3>用户账号</h3>
         <span v-if="userErrorMessage && users.length > 0" class="settings-inline-error">
@@ -620,12 +655,28 @@ watch(memberWorkspaceCode, () => {
   display: flex;
   min-width: 0;
   flex-direction: column;
+  order: 2;
   gap: 16px;
   padding: 20px;
   border: 1px solid var(--app-border);
   border-radius: 16px;
   background: var(--app-bg-panel);
   box-shadow: 0 1px 2px rgb(15 23 42 / 3%);
+}
+
+.workspace-settings-panel.is-workspace-mode .settings-panel-block--workspaces,
+.workspace-settings-panel.is-team-mode .settings-panel-block--users {
+  order: 1;
+  border-left: 3px solid var(--app-primary);
+}
+
+.workspace-settings-panel.is-team-mode .settings-panel-block--members {
+  order: 2;
+}
+
+.workspace-settings-panel.is-workspace-mode .settings-panel-block--members,
+.workspace-settings-panel.is-team-mode .settings-panel-block--workspaces {
+  order: 3;
 }
 
 .settings-panel-block__header {

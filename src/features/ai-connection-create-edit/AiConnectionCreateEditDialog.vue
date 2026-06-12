@@ -13,7 +13,7 @@ import {
 } from '@/entities/ai-provider'
 import { getRequestErrorMessage } from '@/shared/api/error'
 import AppButton from '@/shared/ui/app-button/AppButton.vue'
-import AppDialog from '@/shared/ui/app-dialog/AppDialog.vue'
+import SettingsModal from '@/shared/ui/settings-modal/SettingsModal.vue'
 
 import {
   buildSaveAiConnectionPayload,
@@ -269,13 +269,12 @@ watch(
 </script>
 
 <template>
-  <AppDialog
-    class="ai-connection-create-edit-dialog"
-    :class="{ 'is-provider-select-step': mode === 'create' && dialogStep === 'provider' }"
+  <SettingsModal
     :model-value="modelValue"
     :title="mode === 'create' && dialogStep === 'provider' ? '选择供应商' : mode === 'create' ? '配置连接' : '编辑连接'"
     width="672px"
-    modal-class="ai-connection-create-edit-modal"
+    :panel-class="{ 'is-ai-provider-select-step': mode === 'create' && dialogStep === 'provider' }"
+    :body-class="{ 'is-ai-provider-select-body': mode === 'create' && dialogStep === 'provider' }"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="ai-connection-dialog">
@@ -473,7 +472,7 @@ watch(
         </div>
       </div>
     </template>
-  </AppDialog>
+  </SettingsModal>
 </template>
 
 <style scoped>
@@ -1062,91 +1061,15 @@ watch(
   }
 }
 
-:global(.ai-connection-create-edit-dialog.el-dialog) {
-  overflow: hidden;
-  padding: 0;
-  border-radius: 16px;
-  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
-}
-
-:global(.ai-connection-create-edit-modal) {
-  background: rgba(15, 23, 42, 0.32) !important;
-  backdrop-filter: blur(6px);
-}
-
-:global(.ai-connection-create-edit-dialog .el-dialog__header) {
-  display: flex;
-  min-height: 64px;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0;
-  padding: 0 24px;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-:global(.ai-connection-create-edit-dialog .el-dialog__title) {
-  color: #111827;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-:global(.ai-connection-create-edit-dialog .el-dialog__headerbtn) {
-  position: static;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  transform: none;
-  transition: background-color 180ms ease;
-}
-
-:global(.ai-connection-create-edit-dialog .el-dialog__headerbtn:hover) {
-  background: #f3f4f6;
-}
-
-:global(.ai-connection-create-edit-dialog .el-dialog__close) {
-  color: #9ca3af;
-  font-size: 18px;
-}
-
-:global(.ai-connection-create-edit-dialog .el-dialog__body) {
-  max-height: calc(90vh - 128px);
-  overflow-y: auto;
-  padding: 24px;
-  scrollbar-width: none;
-}
-
-:global(.ai-connection-create-edit-dialog .el-dialog__body::-webkit-scrollbar) {
-  display: none;
-}
-
-:global(.ai-connection-create-edit-dialog .el-dialog__footer) {
-  padding: 16px 24px;
-  border-top: 1px solid #f3f4f6;
-}
-
-:global(.ai-connection-create-edit-dialog.is-provider-select-step .el-dialog__body) {
-  height: calc(100% - 64px);
-  max-height: none;
-  overflow: hidden;
-}
-
-:global(.ai-connection-create-edit-dialog.is-provider-select-step .el-dialog__footer) {
-  display: none;
-}
-
-:global(.ai-connection-create-edit-dialog.is-provider-select-step.el-dialog) {
-  height: 736px;
-  max-height: calc(100vh - 48px);
-}
-
-:global(.ai-connection-create-edit-dialog .el-button) {
+.ai-connection-dialog :deep(.el-button),
+.ai-connection-dialog__footer :deep(.el-button) {
   min-height: 36px;
   padding: 8px 16px;
   border-radius: 10px;
 }
 
-:global(.ai-connection-create-edit-dialog .el-button--primary) {
+.ai-connection-dialog :deep(.el-button--primary),
+.ai-connection-dialog__footer :deep(.el-button--primary) {
   min-width: 96px;
   background: #2563eb;
   border-color: #2563eb;
@@ -1173,5 +1096,21 @@ watch(
   .ai-connection-provider-card {
     min-height: 88px;
   }
+}
+</style>
+
+<style>
+.settings-modal-panel.is-ai-provider-select-step {
+  height: 736px;
+  max-height: calc(100vh - 48px);
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+}
+
+.settings-modal-panel.is-ai-provider-select-step .settings-modal-footer {
+  display: none;
+}
+
+.settings-modal-body.is-ai-provider-select-body {
+  overflow: hidden;
 }
 </style>

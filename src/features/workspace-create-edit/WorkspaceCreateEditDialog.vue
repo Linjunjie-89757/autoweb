@@ -3,7 +3,7 @@ import { reactive, ref, watch } from 'vue'
 
 import type { WorkspaceItem } from '@/entities/workspace'
 import AppButton from '@/shared/ui/app-button/AppButton.vue'
-import AppDialog from '@/shared/ui/app-dialog/AppDialog.vue'
+import SettingsModal from '@/shared/ui/settings-modal/SettingsModal.vue'
 
 import {
   buildSaveWorkspacePayload,
@@ -84,12 +84,10 @@ watch(
 </script>
 
 <template>
-  <AppDialog
+  <SettingsModal
     :model-value="modelValue"
     :title="mode === 'create' ? '新增工作空间' : '编辑工作空间'"
     width="512px"
-    class="workspace-create-edit-dialog"
-    modal-class="workspace-create-edit-dialog__overlay"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="workspace-dialog">
@@ -160,68 +158,10 @@ watch(
         {{ mode === 'create' ? '创建空间' : '保存修改' }}
       </AppButton>
     </template>
-  </AppDialog>
+  </SettingsModal>
 </template>
 
 <style scoped>
-.workspace-create-edit-dialog :deep(.el-dialog) {
-  max-height: 90vh;
-  overflow: hidden;
-  border-radius: 16px;
-  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 25%);
-}
-
-.workspace-create-edit-dialog :deep(.el-dialog__header) {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0;
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid var(--app-border-soft);
-}
-
-.workspace-create-edit-dialog :deep(.el-dialog__title) {
-  color: var(--app-text-primary);
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.45;
-}
-
-.workspace-create-edit-dialog :deep(.el-dialog__headerbtn) {
-  position: static;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-}
-
-.workspace-create-edit-dialog :deep(.el-dialog__headerbtn:hover) {
-  background: var(--app-border-soft);
-}
-
-.workspace-create-edit-dialog :deep(.el-dialog__body) {
-  max-height: calc(90vh - 132px);
-  overflow-y: auto;
-  padding: 24px;
-  scrollbar-width: none;
-}
-
-.workspace-create-edit-dialog :deep(.el-dialog__body::-webkit-scrollbar) {
-  display: none;
-}
-
-.workspace-create-edit-dialog :deep(.el-dialog__footer) {
-  padding: 16px 24px;
-  border-top: 1px solid var(--app-border-soft);
-}
-
-.workspace-create-edit-dialog :deep(.dialog-footer),
-.workspace-create-edit-dialog :deep(.el-dialog__footer) {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
 .workspace-dialog {
   display: grid;
   gap: 20px;
@@ -380,12 +320,5 @@ watch(
   .workspace-dialog__type-grid {
     grid-template-columns: 1fr;
   }
-}
-</style>
-
-<style>
-.workspace-create-edit-dialog__overlay {
-  background: rgb(0 0 0 / 30%);
-  backdrop-filter: blur(8px);
 }
 </style>

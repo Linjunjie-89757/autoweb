@@ -408,10 +408,6 @@ watch(
             <AlertCircle :size="13" />
             <span>{{ modelError }}</span>
           </p>
-          <p v-else-if="mode === 'create'" class="ai-connection-dialog__model-message">
-            <AlertCircle :size="13" />
-            <span>保存连接后即可从服务端获取模型列表。</span>
-          </p>
         </div>
 
         <p v-if="formError" class="ai-connection-dialog__error">{{ formError }}</p>

@@ -14,6 +14,7 @@ export interface AiConnectionForm {
   requestTimeoutSeconds: number
   modelName: string
   apiKey: string
+  usingSavedApiKey: boolean
   status: AiProviderStatus
 }
 
@@ -37,8 +38,14 @@ export function createDefaultAiConnectionForm(workspaceCode = 'ALL'): AiConnecti
     requestTimeoutSeconds: 180,
     modelName: '',
     apiKey: '',
+    usingSavedApiKey: false,
     status: 1,
   }
+}
+
+function buildSavedApiKeyMask(item: AiProviderConnectionItem) {
+  const maskLength = item.apiKeyMasked?.length || 16
+  return 'x'.repeat(maskLength)
 }
 
 export function createAiConnectionFormFromItem(item: AiProviderConnectionItem): AiConnectionForm {
@@ -49,7 +56,8 @@ export function createAiConnectionFormFromItem(item: AiProviderConnectionItem): 
     baseUrl: item.baseUrl,
     requestTimeoutSeconds: item.requestTimeoutSeconds ?? 180,
     modelName: item.modelName ?? '',
-    apiKey: '',
+    apiKey: item.apiKeyConfigured ? buildSavedApiKeyMask(item) : '',
+    usingSavedApiKey: item.apiKeyConfigured,
     status: item.status,
   }
 }
@@ -68,7 +76,7 @@ export function buildSaveAiConnectionPayload(
     status: form.status,
   }
 
-  if (options.includeApiKey) {
+  if (options.includeApiKey && !form.usingSavedApiKey) {
     payload.apiKey = form.apiKey.trim() || null
   }
 

@@ -1,6 +1,7 @@
 import { httpDelete, httpGet, httpPost, httpPut, type ApiResponse } from '@/shared/api/request'
 
 import type {
+  AiProviderConnectionSecret,
   AiProviderConnectionItem,
   AiProviderModelItem,
   AiProviderSyncModelsResult,
@@ -89,6 +90,14 @@ export const aiProviderApi = {
 
   async getProviderModels(workspaceCode: string, id: number) {
     const response = await httpGet<ApiResponse<AiProviderModelItem[]>>(`/cases/ai/providers/${id}/models`, {
+      headers: workspaceHeaders(workspaceCode),
+    })
+
+    return unwrapApiResponse(response)
+  },
+
+  async getProviderConnectionSecret(workspaceCode: string, id: number) {
+    const response = await httpGet<ApiResponse<AiProviderConnectionSecret>>(`/cases/ai/providers/${id}/secret`, {
       headers: workspaceHeaders(workspaceCode),
     })
 

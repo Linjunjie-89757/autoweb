@@ -126,6 +126,7 @@ const visibleStats = computed(() => (isTeamMode.value ? teamStats.value : worksp
 const userKeyword = ref('')
 const userRoleFilter = ref('')
 const userStatusFilter = ref('')
+const userWorkspaceFilter = ref('')
 const userRoleOptions = computed(() => Array.from(new Set(users.value.map((user) => user.roleCode).filter(Boolean))).map((roleCode) => ({
   label: getUserRoleLabel(roleCode),
   value: roleCode,
@@ -134,10 +135,15 @@ const userStatusOptions = computed(() => Array.from(new Set(users.value.map((use
   label: getUserStatusMeta(status).label,
   value: status,
 })))
+const userWorkspaceOptions = computed(() => businessWorkspaces.value.map((workspace) => ({
+  label: workspaceDisplayName(workspace),
+  value: workspaceDisplayCode(workspace),
+})))
 const filteredUsers = computed(() => {
   const keyword = userKeyword.value.trim().toLowerCase()
   const role = userRoleFilter.value
   const status = userStatusFilter.value
+  const workspace = userWorkspaceFilter.value
 
   return users.value.filter((user) => {
     const searchable = [
@@ -146,12 +152,14 @@ const filteredUsers = computed(() => {
       user.email,
       user.roleCode,
       getUserRoleLabel(user.roleCode),
-      formatUserWorkspaceNames(user.workspaceNames),
     ].join(' ').toLowerCase()
     const matchesKeyword = !keyword || searchable.includes(keyword)
     const matchesRole = !role || user.roleCode === role
     const matchesStatus = !status || String(Number(user.status)) === status
-    return matchesKeyword && matchesRole && matchesStatus
+    const hasWorkspace = (user.workspaceCodes ?? []).length > 0 || (user.workspaceNames ?? []).length > 0
+    const matchesWorkspace = !workspace
+      || (workspace === '__none__' ? !hasWorkspace : (user.workspaceCodes ?? []).includes(workspace))
+    return matchesKeyword && matchesRole && matchesStatus && matchesWorkspace
   })
 })
 const workspaceAdminMembers = computed(() => members.value.filter((member) => String(member.roleCode || '').toUpperCase().includes('ADMIN')))
@@ -164,6 +172,7 @@ function resetUserFilters() {
   userKeyword.value = ''
   userRoleFilter.value = ''
   userStatusFilter.value = ''
+  userWorkspaceFilter.value = ''
 }
 
 function workspaceDisplayName(workspace: WorkspaceItem) {
@@ -770,7 +779,7 @@ watch(memberWorkspaceCode, () => {
         <section class="team-filter-card">
           <label class="team-filter-field is-keyword">
             <span>关键词</span>
-            <input v-model="userKeyword" type="search" placeholder="搜索姓名、账号、邮箱或空间" />
+            <input v-model="userKeyword" type="search" placeholder="搜索姓名、账号或邮箱" />
           </label>
           <label class="team-filter-field">
             <span>平台角色</span>
@@ -786,6 +795,16 @@ watch(memberWorkspaceCode, () => {
             <select v-model="userStatusFilter">
               <option value="">全部状态</option>
               <option v-for="option in userStatusOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+          <label class="team-filter-field">
+            <span>所属空间</span>
+            <select v-model="userWorkspaceFilter">
+              <option value="">全部空间</option>
+              <option value="__none__">无</option>
+              <option v-for="option in userWorkspaceOptions" :key="option.value" :value="option.value">
                 {{ option.label }}
               </option>
             </select>
@@ -1358,7 +1377,7 @@ watch(memberWorkspaceCode, () => {
 
 .team-filter-card {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 180px 160px auto;
+  grid-template-columns: minmax(180px, 1fr) 160px 140px 180px auto;
   align-items: end;
   gap: 12px;
   margin-bottom: 16px;

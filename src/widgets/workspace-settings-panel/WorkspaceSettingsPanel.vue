@@ -813,9 +813,7 @@ watch(memberWorkspaceCode, () => {
         </section>
 
         <div v-if="filteredUsers.length === 0" class="team-empty-state">
-          <div class="team-empty-state__icon" aria-hidden="true">
-            <span>U</span>
-          </div>
+          <Users :size="32" aria-hidden="true" />
           <strong>暂无匹配账号</strong>
           <p>调整筛选条件后再查看用户账号。</p>
         </div>
@@ -1261,7 +1259,12 @@ watch(memberWorkspaceCode, () => {
 }
 
 .workspace-settings-panel.is-team-mode .settings-panel-block--users {
-  padding: 20px;
+  gap: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
 }
 
 .settings-panel-block > :not(.settings-panel-block__header) {
@@ -1380,7 +1383,6 @@ watch(memberWorkspaceCode, () => {
   grid-template-columns: minmax(180px, 1fr) 160px 140px 180px auto;
   align-items: end;
   gap: 12px;
-  margin-bottom: 16px;
   padding: 16px;
   border: 1px solid var(--app-border);
   border-radius: 16px;
@@ -1445,13 +1447,18 @@ watch(memberWorkspaceCode, () => {
 .team-empty-state {
   display: grid;
   min-height: 220px;
-  place-items: center;
+  justify-items: center;
+  align-content: center;
   gap: 8px;
   padding: 48px 20px;
   border: 1px solid var(--app-border-soft);
   border-radius: 16px;
   background: var(--app-bg-subtle);
   text-align: center;
+}
+
+.team-empty-state > svg {
+  color: var(--app-text-muted);
 }
 
 .team-empty-state__icon {

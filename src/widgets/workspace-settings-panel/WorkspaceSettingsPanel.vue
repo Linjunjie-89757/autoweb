@@ -116,11 +116,11 @@ const canManageUsers = computed(() => {
   return ['SUPER_ADMIN', 'PLATFORM_ADMIN', 'ADMIN'].includes(roleCode)
 })
 const isCurrentSuperAdmin = computed(() => String(currentUser.value?.roleCode || '').toUpperCase() === 'SUPER_ADMIN')
-const panelTitle = computed(() => (isTeamMode.value ? '用户管理' : '工作空间设置'))
+const panelTitle = computed(() => (isTeamMode.value ? '用户管理' : '工作空间配置'))
 const panelDescription = computed(() => (
   isTeamMode.value
     ? '以用户账号为主线查看平台用户、空间成员与工作空间关联。'
-    : '以工作空间为主线查看和维护平台空间、空间成员与用户概览。'
+    : '管理测试空间，控制不同项目和团队的测试资源隔离。'
 ))
 const visibleStats = computed(() => (isTeamMode.value ? teamStats.value : workspaceStats.value))
 
@@ -193,7 +193,22 @@ function getWorkspaceTypeLabel(workspace: WorkspaceItem) {
 }
 
 function getWorkspaceOwnerLabel(workspace: WorkspaceItem) {
-  return workspace.ownerName || '未设置负责人'
+  return workspace.ownerName || '未设置'
+}
+
+function getWorkspaceMemberCount(workspace: WorkspaceItem) {
+  const workspaceCode = workspaceDisplayCode(workspace)
+  return users.value.filter((user) => {
+    const roleCode = String(user.roleCode || '').toUpperCase()
+    if (roleCode.includes('ADMIN')) {
+      return true
+    }
+    return (user.workspaceCodes ?? []).includes(workspaceCode)
+  }).length
+}
+
+function getWorkspaceCardStatusLabel(status?: number | string | null) {
+  return Number(status) === 0 ? '已禁用' : '启用中'
 }
 
 function getUserInitial(user: UserItem | WorkspaceMemberItem) {
@@ -608,6 +623,7 @@ watch(memberWorkspaceCode, () => {
       </div>
       <div class="settings-panel-header__actions">
         <AppButton
+          v-if="isTeamMode"
           :icon="RefreshRight"
           :loading="workspaceLoading || userLoading"
           @click="reloadAll"
@@ -635,8 +651,8 @@ watch(memberWorkspaceCode, () => {
     </div>
 
     <div class="settings-panel-block settings-panel-block--workspaces">
-      <div class="settings-panel-block__header">
-        <h3>工作空间</h3>
+      <div v-if="isTeamMode" class="settings-panel-block__header">
+        <h3>工作空间配置</h3>
         <div class="settings-panel-block__actions">
           <span v-if="workspaceErrorMessage && businessWorkspaces.length > 0" class="settings-inline-error">
             {{ workspaceErrorMessage }}
@@ -676,16 +692,13 @@ watch(memberWorkspaceCode, () => {
         >
           <div class="workspace-card-main">
             <div class="workspace-card-head">
-              <div class="workspace-card-icon">
-                {{ workspaceDisplayName(workspace).slice(0, 1).toUpperCase() }}
-              </div>
+              <div class="workspace-card-icon" :class="`is-${normalizeWorkspaceType(workspace)}`" aria-hidden="true" />
               <div class="workspace-card-title">
                 <div class="workspace-card-name-row">
                   <h3>{{ workspaceDisplayName(workspace) }}</h3>
-                  <AppStatusBadge
-                    :label="getWorkspaceStatusMeta(workspace.status).label"
-                    :tone="getWorkspaceStatusMeta(workspace.status).tone"
-                  />
+                  <span class="workspace-status-badge" :class="{ 'is-disabled': Number(workspace.status) === 0 }">
+                    {{ getWorkspaceCardStatusLabel(workspace.status) }}
+                  </span>
                 </div>
                 <p>{{ workspace.description || '暂无空间说明' }}</p>
               </div>
@@ -705,8 +718,8 @@ watch(memberWorkspaceCode, () => {
             <span class="workspace-type-badge" :class="`is-${normalizeWorkspaceType(workspace)}`">
               {{ getWorkspaceTypeLabel(workspace) }}
             </span>
-            <span>{{ getWorkspaceOwnerLabel(workspace) }}</span>
-            <span>{{ workspaceDisplayCode(workspace) }}</span>
+            <span>{{ getWorkspaceOwnerLabel(workspace) }} (负责人)</span>
+            <span>{{ getWorkspaceMemberCount(workspace) }} 名成员</span>
           </footer>
         </article>
       </div>
@@ -758,7 +771,7 @@ watch(memberWorkspaceCode, () => {
       </el-table>
     </div>
 
-    <div class="settings-panel-block settings-panel-block--members">
+    <div v-if="isTeamMode" class="settings-panel-block settings-panel-block--members">
       <div class="settings-panel-block__header">
         <div>
           <h3>成员管理</h3>
@@ -877,7 +890,7 @@ watch(memberWorkspaceCode, () => {
       </el-table>
     </div>
 
-    <div class="settings-panel-block settings-panel-block--users">
+    <div v-if="isTeamMode" class="settings-panel-block settings-panel-block--users">
       <div class="settings-panel-block__header">
         <h3>用户账号</h3>
         <div class="settings-panel-block__actions">
@@ -1158,6 +1171,10 @@ watch(memberWorkspaceCode, () => {
   gap: 16px;
 }
 
+.workspace-settings-panel.is-workspace-mode .settings-stat-grid {
+  margin-bottom: 28px;
+}
+
 .settings-stat {
   display: flex;
   min-width: 0;
@@ -1167,6 +1184,11 @@ watch(memberWorkspaceCode, () => {
   border: 1px solid var(--app-border);
   border-radius: 16px;
   background: var(--app-bg-panel);
+}
+
+.workspace-settings-panel.is-workspace-mode .settings-stat {
+  min-height: 88px;
+  padding: 16px 20px;
 }
 
 .settings-stat span {
@@ -1237,8 +1259,20 @@ watch(memberWorkspaceCode, () => {
   overflow: hidden;
 }
 
+.workspace-settings-panel.is-workspace-mode .settings-panel-block--workspaces {
+  gap: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
 .settings-panel-block > :not(.settings-panel-block__header) {
   margin: 0 20px 20px;
+}
+
+.workspace-settings-panel.is-workspace-mode .settings-panel-block--workspaces > :not(.settings-panel-block__header) {
+  margin: 0;
 }
 
 .workspace-settings-panel.is-workspace-mode .settings-panel-block--workspaces,
@@ -1478,7 +1512,8 @@ watch(memberWorkspaceCode, () => {
 
 .workspace-config-card {
   min-width: 0;
-  padding: 18px;
+  min-height: 126px;
+  padding: 20px;
   border: 1px solid var(--app-border);
   border-radius: 16px;
   background: var(--app-bg-panel);
@@ -1486,9 +1521,8 @@ watch(memberWorkspaceCode, () => {
 }
 
 .workspace-config-card:hover {
-  border-color: var(--app-border-strong);
+  border-color: var(--app-border);
   box-shadow: var(--app-shadow-card-hover);
-  transform: translateY(-1px);
 }
 
 .workspace-config-card.is-disabled {
@@ -1521,15 +1555,37 @@ watch(memberWorkspaceCode, () => {
   border-radius: 12px;
   background: linear-gradient(135deg, #3b82f6, var(--app-primary));
   color: var(--app-text-inverse);
-  font-size: 15px;
-  font-weight: 700;
+  position: relative;
 }
 
-.workspace-config-card.is-team .workspace-card-icon {
+.workspace-card-icon::before,
+.workspace-card-icon::after {
+  position: absolute;
+  border: 1.5px solid currentColor;
+  border-radius: 4px;
+  content: "";
+}
+
+.workspace-card-icon::before {
+  width: 16px;
+  height: 16px;
+  transform: rotate(30deg) skew(-8deg, -8deg);
+}
+
+.workspace-card-icon::after {
+  width: 10px;
+  height: 10px;
+  border-top: 0;
+  border-left: 0;
+  transform: translateY(5px) rotate(30deg) skew(-8deg, -8deg);
+  opacity: 0.82;
+}
+
+.workspace-card-icon.is-team {
   background: linear-gradient(135deg, #22c55e, var(--app-success));
 }
 
-.workspace-config-card.is-product .workspace-card-icon {
+.workspace-card-icon.is-product {
   background: linear-gradient(135deg, #a855f7, var(--app-purple));
 }
 
@@ -1569,6 +1625,23 @@ watch(memberWorkspaceCode, () => {
   -webkit-line-clamp: 2;
 }
 
+.workspace-status-badge {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--app-success-soft);
+  color: var(--app-success);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.workspace-status-badge.is-disabled {
+  background: var(--app-bg-muted);
+  color: var(--app-text-muted);
+}
+
 .workspace-card-actions {
   display: inline-flex;
   flex: 0 0 auto;
@@ -1596,8 +1669,8 @@ watch(memberWorkspaceCode, () => {
 }
 
 .workspace-card-actions button:hover {
-  background: var(--app-primary-soft);
-  color: var(--app-primary);
+  background: var(--app-bg-muted);
+  color: var(--app-text-primary);
 }
 
 .workspace-card-meta {
@@ -1611,10 +1684,21 @@ watch(memberWorkspaceCode, () => {
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   color: var(--app-text-muted);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.workspace-card-meta span::before {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  flex: 0 0 13px;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+  opacity: 0.72;
+  content: "";
 }
 
 .workspace-type-badge {
@@ -1623,6 +1707,10 @@ watch(memberWorkspaceCode, () => {
   border-radius: 8px;
   background: var(--app-primary-soft);
   color: var(--app-primary-hover) !important;
+}
+
+.workspace-type-badge::before {
+  border-color: currentColor;
 }
 
 .workspace-type-badge.is-team {

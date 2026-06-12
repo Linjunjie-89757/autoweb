@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { Delete, Edit, Plus, RefreshRight } from '@element-plus/icons-vue'
+import { Avatar, Delete, Edit, OfficeBuilding, Plus, RefreshRight, Suitcase, User, UserFilled } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import {
@@ -692,7 +692,11 @@ watch(memberWorkspaceCode, () => {
         >
           <div class="workspace-card-main">
             <div class="workspace-card-head">
-              <div class="workspace-card-icon" :class="`is-${normalizeWorkspaceType(workspace)}`" aria-hidden="true" />
+              <div class="workspace-card-icon" :class="`is-${normalizeWorkspaceType(workspace)}`" aria-hidden="true">
+                <el-icon v-if="normalizeWorkspaceType(workspace) === 'team'"><UserFilled /></el-icon>
+                <el-icon v-else-if="normalizeWorkspaceType(workspace) === 'product'"><Suitcase /></el-icon>
+                <el-icon v-else><OfficeBuilding /></el-icon>
+              </div>
               <div class="workspace-card-title">
                 <div class="workspace-card-name-row">
                   <h3>{{ workspaceDisplayName(workspace) }}</h3>
@@ -716,10 +720,19 @@ watch(memberWorkspaceCode, () => {
 
           <footer class="workspace-card-meta">
             <span class="workspace-type-badge" :class="`is-${normalizeWorkspaceType(workspace)}`">
+              <el-icon v-if="normalizeWorkspaceType(workspace) === 'team'"><UserFilled /></el-icon>
+              <el-icon v-else-if="normalizeWorkspaceType(workspace) === 'product'"><Suitcase /></el-icon>
+              <el-icon v-else><OfficeBuilding /></el-icon>
               {{ getWorkspaceTypeLabel(workspace) }}
             </span>
-            <span>{{ getWorkspaceOwnerLabel(workspace) }} (负责人)</span>
-            <span>{{ getWorkspaceMemberCount(workspace) }} 名成员</span>
+            <span>
+              <el-icon><User /></el-icon>
+              {{ getWorkspaceOwnerLabel(workspace) }} (负责人)
+            </span>
+            <span>
+              <el-icon><Avatar /></el-icon>
+              {{ getWorkspaceMemberCount(workspace) }} 名成员
+            </span>
           </footer>
         </article>
       </div>
@@ -1512,21 +1525,21 @@ watch(memberWorkspaceCode, () => {
 
 .workspace-config-card {
   min-width: 0;
-  min-height: 126px;
+  min-height: 128px;
   padding: 20px;
   border: 1px solid var(--app-border);
   border-radius: 16px;
   background: var(--app-bg-panel);
-  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  transition: border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease;
 }
 
 .workspace-config-card:hover {
   border-color: var(--app-border);
-  box-shadow: var(--app-shadow-card-hover);
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 10%), 0 2px 4px -2px rgb(0 0 0 / 10%);
 }
 
 .workspace-config-card.is-disabled {
-  opacity: 0.68;
+  opacity: 0.64;
 }
 
 .workspace-card-main {
@@ -1555,30 +1568,10 @@ watch(memberWorkspaceCode, () => {
   border-radius: 12px;
   background: linear-gradient(135deg, #3b82f6, var(--app-primary));
   color: var(--app-text-inverse);
-  position: relative;
 }
 
-.workspace-card-icon::before,
-.workspace-card-icon::after {
-  position: absolute;
-  border: 1.5px solid currentColor;
-  border-radius: 4px;
-  content: "";
-}
-
-.workspace-card-icon::before {
-  width: 16px;
-  height: 16px;
-  transform: rotate(30deg) skew(-8deg, -8deg);
-}
-
-.workspace-card-icon::after {
-  width: 10px;
-  height: 10px;
-  border-top: 0;
-  border-left: 0;
-  transform: translateY(5px) rotate(30deg) skew(-8deg, -8deg);
-  opacity: 0.82;
+.workspace-card-icon .el-icon {
+  font-size: 20px;
 }
 
 .workspace-card-icon.is-team {
@@ -1629,8 +1622,8 @@ watch(memberWorkspaceCode, () => {
   flex: 0 0 auto;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--app-success-soft);
-  color: var(--app-success);
+  background: #dcfce7;
+  color: #15803d;
   font-size: 12px;
   font-weight: 500;
   line-height: 1.35;
@@ -1638,8 +1631,8 @@ watch(memberWorkspaceCode, () => {
 }
 
 .workspace-status-badge.is-disabled {
-  background: var(--app-bg-muted);
-  color: var(--app-text-muted);
+  background: var(--app-border-soft);
+  color: var(--app-text-secondary);
 }
 
 .workspace-card-actions {
@@ -1664,13 +1657,14 @@ watch(memberWorkspaceCode, () => {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: var(--app-text-muted);
+  color: var(--app-text-subtle);
   cursor: pointer;
+  transition: background-color 180ms ease, color 180ms ease;
 }
 
 .workspace-card-actions button:hover {
-  background: var(--app-bg-muted);
-  color: var(--app-text-primary);
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
 }
 
 .workspace-card-meta {
@@ -1684,21 +1678,15 @@ watch(memberWorkspaceCode, () => {
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   color: var(--app-text-muted);
   font-size: 12px;
   line-height: 1.35;
 }
 
-.workspace-card-meta span::before {
-  display: inline-block;
-  width: 13px;
-  height: 13px;
-  flex: 0 0 13px;
-  border-radius: 4px;
-  border: 1px solid currentColor;
-  opacity: 0.72;
-  content: "";
+.workspace-card-meta .el-icon {
+  flex: 0 0 auto;
+  font-size: 13px;
 }
 
 .workspace-type-badge {
@@ -1707,10 +1695,6 @@ watch(memberWorkspaceCode, () => {
   border-radius: 8px;
   background: var(--app-primary-soft);
   color: var(--app-primary-hover) !important;
-}
-
-.workspace-type-badge::before {
-  border-color: currentColor;
 }
 
 .workspace-type-badge.is-team {

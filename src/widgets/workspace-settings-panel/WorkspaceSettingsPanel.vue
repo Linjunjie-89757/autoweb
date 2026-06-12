@@ -1348,7 +1348,6 @@ watch(memberWorkspaceCode, () => {
   box-shadow: -8px 0 16px rgb(15 23 42 / 0.04);
 }
 
-
 .settings-panel-block--users :deep(.app-empty-state),
 .settings-panel-block--users :deep(.app-loading-state) {
   min-height: 180px;
@@ -2035,7 +2034,6 @@ watch(memberWorkspaceCode, () => {
   min-width: 0;
   align-items: center;
   gap: 12px;
-  padding-left: 8px;
 }
 
 .team-avatar {

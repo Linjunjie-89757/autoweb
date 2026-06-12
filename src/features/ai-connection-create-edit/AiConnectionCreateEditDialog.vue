@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 import { Hide, View } from '@element-plus/icons-vue'
+import { ChevronLeft, ChevronRight } from '@lucide/vue'
 
 import {
   aiProviderBrands,
@@ -96,6 +97,10 @@ function backToProviderStep() {
   }
 }
 
+function restoreDefaultBaseUrl() {
+  form.baseUrl = selectedBrand.value.baseUrl
+}
+
 watch(
   () => props.modelValue,
   (visible) => {
@@ -119,7 +124,7 @@ watch(
   <AppDialog
     :model-value="modelValue"
     :title="mode === 'create' && dialogStep === 'provider' ? '选择供应商' : mode === 'create' ? '配置连接' : '编辑 AI 连接'"
-    width="min(760px, calc(100vw - 32px))"
+    width="min(672px, calc(100vw - 32px))"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="ai-connection-dialog">
@@ -133,13 +138,22 @@ watch(
             class="ai-connection-provider-card"
             @click="selectBrand(brand)"
           >
-            <span class="ai-connection-brand" :class="`ai-connection-brand--${brand.tone}`">
-              {{ brand.mark }}
+            <span
+              class="ai-connection-brand"
+              :class="[
+                `ai-connection-brand--${brand.tone}`,
+                brand.logoClass,
+                { 'has-logo-image': brand.logoSrc },
+              ]"
+            >
+              <img v-if="brand.logoSrc" :src="brand.logoSrc" :alt="brand.name">
+              <span>{{ brand.shortName.slice(0, 1) }}</span>
             </span>
             <span>
               <strong>{{ brand.name }}</strong>
               <small>{{ brand.description }}</small>
             </span>
+            <ChevronRight class="ai-connection-provider-card__arrow" :size="16" />
           </button>
         </div>
       </section>
@@ -151,12 +165,21 @@ watch(
           class="ai-connection-dialog__back"
           @click="backToProviderStep"
         >
+          <ChevronLeft :size="13" />
           重新选择供应商
         </button>
 
         <div class="ai-connection-selected-provider">
-          <span class="ai-connection-brand" :class="`ai-connection-brand--${selectedBrand.tone}`">
-            {{ selectedBrand.mark }}
+          <span
+            class="ai-connection-brand"
+            :class="[
+              `ai-connection-brand--${selectedBrand.tone}`,
+              selectedBrand.logoClass,
+              { 'has-logo-image': selectedBrand.logoSrc },
+            ]"
+          >
+            <img v-if="selectedBrand.logoSrc" :src="selectedBrand.logoSrc" :alt="selectedBrand.name">
+            <span>{{ selectedBrand.shortName.slice(0, 1) }}</span>
           </span>
           <span>
             <strong>{{ selectedBrand.name }}</strong>
@@ -165,44 +188,24 @@ watch(
         </div>
 
         <label class="ai-connection-dialog__field">
-          <span>目标空间</span>
-          <el-input v-model="form.workspaceCode" placeholder="ALL" />
-        </label>
-
-        <label class="ai-connection-dialog__field">
-          <span>连接名称 *</span>
-          <el-input v-model="form.connectionName" placeholder="例如：OpenAI 主连接" />
+          <span>连接名称</span>
+          <el-input v-model="form.connectionName" placeholder="例如：OpenAI 官方 / DeepSeek 代理 / 内网网关" />
         </label>
 
         <div class="ai-connection-dialog__field">
-          <span>协议类型</span>
-          <div class="ai-connection-dialog__segment">
-            <button
-              v-for="item in aiConnectionProtocolOptions"
-              :key="item.value"
-              type="button"
-              :class="{ 'is-active': form.protocolType === item.value }"
-              @click="form.protocolType = item.value"
-            >
-              {{ item.label }}
-            </button>
-          </div>
+          <span class="ai-connection-dialog__label-row">
+            API URL
+            <button type="button" @click="restoreDefaultBaseUrl">恢复默认</button>
+          </span>
+          <el-input v-model="form.baseUrl" class="is-mono" :placeholder="selectedBrand.baseUrl" />
+          <small>支持自定义代理地址或私有部署地址</small>
         </div>
-
-        <label class="ai-connection-dialog__field">
-          <span>Base URL *</span>
-          <el-input v-model="form.baseUrl" placeholder="https://api.example.com/v1" />
-        </label>
-
-        <label class="ai-connection-dialog__field">
-          <span>模型名称 *</span>
-          <el-input v-model="form.modelName" placeholder="例如：gpt-4.1" />
-        </label>
 
         <label class="ai-connection-dialog__field">
           <span>API Key {{ mode === 'create' ? '*' : '' }}</span>
           <el-input
             v-model="form.apiKey"
+            class="is-mono"
             :type="apiKeyVisible ? 'text' : 'password'"
             autocomplete="current-password"
             :placeholder="mode === 'edit' ? '留空则继续使用已保存密钥' : '请输入 API Key'"
@@ -223,42 +226,77 @@ watch(
           </el-input>
         </label>
 
-        <div class="ai-connection-dialog__grid">
+        <label class="ai-connection-dialog__field">
+          <span>模型名称</span>
+          <el-input v-model="form.modelName" class="is-mono" placeholder="例如：gpt-4o、deepseek-chat、qwen-max" />
+        </label>
+
+        <details class="ai-connection-dialog__advanced">
+          <summary>高级配置</summary>
           <label class="ai-connection-dialog__field">
-            <span>请求超时（秒）</span>
-            <el-input-number v-model="form.requestTimeoutSeconds" :min="10" :max="600" />
+            <span>目标空间</span>
+            <el-input v-model="form.workspaceCode" placeholder="ALL" />
           </label>
 
           <div class="ai-connection-dialog__field">
-            <span>状态</span>
-            <div class="ai-connection-dialog__segment is-two">
+            <span>协议类型</span>
+            <div class="ai-connection-dialog__segment">
               <button
-                v-for="item in aiConnectionStatusOptions"
+                v-for="item in aiConnectionProtocolOptions"
                 :key="item.value"
                 type="button"
-                :class="{ 'is-active': form.status === item.value }"
-                @click="form.status = item.value"
+                :class="{ 'is-active': form.protocolType === item.value }"
+                @click="form.protocolType = item.value"
               >
                 {{ item.label }}
               </button>
             </div>
           </div>
-        </div>
+
+          <div class="ai-connection-dialog__grid">
+            <label class="ai-connection-dialog__field">
+              <span>请求超时（秒）</span>
+              <el-input-number v-model="form.requestTimeoutSeconds" :min="10" :max="600" />
+            </label>
+
+            <div class="ai-connection-dialog__field">
+              <span>状态</span>
+              <div class="ai-connection-dialog__segment is-two">
+                <button
+                  v-for="item in aiConnectionStatusOptions"
+                  :key="item.value"
+                  type="button"
+                  :class="{ 'is-active': form.status === item.value }"
+                  @click="form.status = item.value"
+                >
+                  {{ item.label }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </details>
 
         <p v-if="formError" class="ai-connection-dialog__error">{{ formError }}</p>
       </section>
     </div>
 
     <template #footer>
-      <AppButton :disabled="saving" @click="emit('update:modelValue', false)">取消</AppButton>
-      <AppButton
-        v-if="mode === 'create' && dialogStep === 'provider'"
-        type="primary"
-        @click="selectBrand(selectedBrand)"
-      >
-        下一步
-      </AppButton>
-      <AppButton v-else type="primary" :loading="saving" @click="submit">保存</AppButton>
+      <div class="ai-connection-dialog__footer">
+        <span aria-hidden="true" />
+        <div class="ai-connection-dialog__footer-actions">
+          <AppButton :disabled="saving" @click="emit('update:modelValue', false)">取消</AppButton>
+          <AppButton
+            v-if="mode === 'create' && dialogStep === 'provider'"
+            type="primary"
+            @click="selectBrand(selectedBrand)"
+          >
+            下一步
+          </AppButton>
+          <AppButton v-else type="primary" :loading="saving" @click="submit">
+            {{ mode === 'edit' ? '保存修改' : '添加连接' }}
+          </AppButton>
+        </div>
+      </div>
     </template>
   </AppDialog>
 </template>
@@ -267,7 +305,7 @@ watch(
 .ai-connection-dialog {
   display: flex;
   flex-direction: column;
-  gap: var(--app-space-4);
+  gap: 20px;
 }
 
 .ai-connection-provider-step,
@@ -275,41 +313,43 @@ watch(
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: var(--app-space-4);
+  gap: 20px;
 }
 
 .ai-connection-provider-step > p {
-  margin: 0;
-  color: var(--app-text-muted);
-  font-size: var(--app-font-size-sm);
-  line-height: var(--app-line-height-md);
+  margin: 0 0 4px;
+  color: #6b7280;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .ai-connection-provider-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--app-space-3);
+  gap: 12px;
 }
 
 .ai-connection-provider-card {
+  position: relative;
   display: flex;
   min-width: 0;
-  min-height: 96px;
+  min-height: 82px;
   align-items: center;
-  gap: var(--app-space-3);
-  padding: var(--app-space-4);
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-lg);
-  background: var(--app-bg-panel);
-  color: var(--app-text-secondary);
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #fff;
+  color: #374151;
   cursor: pointer;
   text-align: left;
-  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
 .ai-connection-provider-card:hover {
-  border-color: var(--app-primary);
-  box-shadow: var(--app-shadow-card);
+  border-color: #93c5fd;
+  background: #f8fbff;
+  box-shadow: 0 14px 34px rgba(37, 99, 235, 0.1);
   transform: translateY(-1px);
 }
 
@@ -324,9 +364,9 @@ watch(
 .ai-connection-provider-card strong,
 .ai-connection-selected-provider strong {
   overflow: hidden;
-  color: var(--app-text-primary);
-  font-size: var(--app-font-size-md);
-  line-height: var(--app-line-height-md);
+  color: #111827;
+  font-size: 14px;
+  line-height: 1.45;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -335,25 +375,39 @@ watch(
 .ai-connection-selected-provider small {
   display: -webkit-box;
   overflow: hidden;
-  color: var(--app-text-muted);
-  font-size: var(--app-font-size-xs);
-  line-height: var(--app-line-height-xs);
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.4;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.ai-connection-provider-card__arrow {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: #9ca3af;
+  transition: color 180ms ease, transform 180ms ease;
+}
+
+.ai-connection-provider-card:hover .ai-connection-provider-card__arrow {
+  color: #2563eb;
+  transform: translateX(2px);
 }
 
 .ai-connection-selected-provider {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: var(--app-space-3);
-  padding: var(--app-space-3);
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-lg);
-  background: var(--app-bg-subtle);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #f8fbff;
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.03);
 }
 
 .ai-connection-brand {
+  position: relative;
   display: inline-flex;
   width: 42px;
   height: 42px;
@@ -367,6 +421,22 @@ watch(
   font-size: var(--app-font-size-sm);
   font-weight: 800;
   line-height: 1;
+}
+
+.ai-connection-brand img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.ai-connection-brand.has-logo-image {
+  overflow: hidden;
+  padding: 8px;
+  background: #fff;
+}
+
+.ai-connection-brand.has-logo-image > span {
+  display: none;
 }
 
 .ai-connection-brand--primary {
@@ -400,6 +470,9 @@ watch(
 }
 
 .ai-connection-dialog__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   width: fit-content;
   min-height: 28px;
   padding: 0;
@@ -409,6 +482,22 @@ watch(
   cursor: pointer;
   font-size: var(--app-font-size-xs);
   font-weight: 600;
+}
+
+.ai-connection-dialog__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ai-connection-dialog__label-row button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #2563eb;
+  cursor: pointer;
+  font-size: 12px;
 }
 
 .ai-connection-dialog__grid {
@@ -421,13 +510,33 @@ watch(
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: var(--app-space-2);
+  gap: 6px;
 }
 
 .ai-connection-dialog__field > span {
-  color: var(--app-text-secondary);
-  font-size: var(--app-font-size-sm);
-  font-weight: 600;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.ai-connection-dialog__field small {
+  color: #9ca3af;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ai-connection-dialog :deep(.el-input__wrapper) {
+  min-height: 42px;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px #e5e7eb inset;
+}
+
+.ai-connection-dialog :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #60a5fa inset, 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.ai-connection-dialog :deep(.is-mono .el-input__inner) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .ai-connection-dialog__segment {
@@ -469,10 +578,44 @@ watch(
   cursor: pointer;
 }
 
+.ai-connection-dialog__advanced {
+  display: grid;
+  gap: var(--app-space-4);
+  padding: 12px;
+  border: 1px solid #eef2f7;
+  border-radius: 14px;
+  background: #fbfdff;
+}
+
+.ai-connection-dialog__advanced summary {
+  color: #64748b;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ai-connection-dialog__advanced[open] summary {
+  margin-bottom: var(--app-space-4);
+}
+
 .ai-connection-dialog__error {
   margin: 0;
   color: var(--app-danger);
   font-size: var(--app-font-size-sm);
+}
+
+.ai-connection-dialog__footer {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ai-connection-dialog__footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 @media (prefers-reduced-motion: reduce) {

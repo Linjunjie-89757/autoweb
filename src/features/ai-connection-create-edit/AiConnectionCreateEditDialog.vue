@@ -259,6 +259,7 @@ watch(
     :model-value="modelValue"
     :title="mode === 'create' && dialogStep === 'provider' ? '选择供应商' : mode === 'create' ? '配置连接' : '编辑连接'"
     width="672px"
+    modal-class="ai-connection-create-edit-modal"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="ai-connection-dialog">
@@ -521,6 +522,10 @@ watch(
   gap: 20px;
 }
 
+.ai-connection-provider-step {
+  gap: 20px;
+}
+
 .ai-connection-provider-step > p {
   margin: 0 0 2px;
   color: #6b7280;
@@ -538,10 +543,10 @@ watch(
   position: relative;
   display: flex;
   min-width: 0;
-  min-height: 86px;
+  min-height: 82px;
   align-items: center;
   gap: 14px;
-  padding: 16px 18px;
+  padding: 16px;
   border: 1px solid #e5e7eb;
   border-radius: 14px;
   background: #fff;
@@ -551,11 +556,13 @@ watch(
   transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
 }
 
-.ai-connection-provider-card:hover {
+.ai-connection-provider-card:hover,
+.ai-connection-provider-card:focus {
   border-color: #93c5fd;
   background: #f8fbff;
   box-shadow: 0 14px 34px rgba(37, 99, 235, 0.1);
   transform: translateY(-1px);
+  outline: none;
 }
 
 .ai-connection-provider-card > span:last-child,
@@ -594,7 +601,8 @@ watch(
   transition: color 180ms ease, transform 180ms ease;
 }
 
-.ai-connection-provider-card:hover .ai-connection-provider-card__arrow {
+.ai-connection-provider-card:hover .ai-connection-provider-card__arrow,
+.ai-connection-provider-card:focus .ai-connection-provider-card__arrow {
   color: #2563eb;
   transform: translateX(2px);
 }
@@ -639,8 +647,9 @@ watch(
 }
 
 .ai-connection-brand img {
-  max-width: 100%;
-  max-height: 100%;
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
 
@@ -1100,8 +1109,14 @@ watch(
 
 :global(.ai-connection-create-edit-dialog.el-dialog) {
   overflow: hidden;
+  padding: 0;
   border-radius: 16px;
   box-shadow: 0 28px 80px rgba(15, 23, 42, 0.28);
+}
+
+:global(.ai-connection-create-edit-modal) {
+  background: rgba(15, 23, 42, 0.32) !important;
+  backdrop-filter: blur(6px);
 }
 
 :global(.ai-connection-create-edit-dialog .el-dialog__header) {
@@ -1156,11 +1171,18 @@ watch(
 }
 
 :global(.ai-connection-create-edit-dialog.is-provider-select-step .el-dialog__body) {
-  max-height: calc(90vh - 64px);
+  height: calc(100% - 64px);
+  max-height: none;
+  overflow: hidden;
 }
 
 :global(.ai-connection-create-edit-dialog.is-provider-select-step .el-dialog__footer) {
   display: none;
+}
+
+:global(.ai-connection-create-edit-dialog.is-provider-select-step.el-dialog) {
+  height: 736px;
+  max-height: calc(100vh - 48px);
 }
 
 :global(.ai-connection-create-edit-dialog .el-button) {

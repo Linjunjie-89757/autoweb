@@ -121,7 +121,7 @@ const placeholderMeta = computed(() => {
 }
 
 .system-settings-page__content :deep(.settings-panel-header__actions .el-button.app-button) {
-  min-height: 34px;
+  min-height: 36px;
   padding: 0 14px;
   border-radius: 8px;
   font-size: 13px;

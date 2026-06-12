@@ -211,9 +211,9 @@ onMounted(() => {
 
     <section v-else-if="providers.length === 0" class="ai-connection-empty">
       <span class="ai-connection-empty__icon" aria-hidden="true">
-        <Database :size="34" />
+        <Database :size="32" />
       </span>
-      <h3>暂无连接配置</h3>
+      <strong>暂无连接配置</strong>
       <p>点击右上角「添加连接」开始配置 AI 模型</p>
       <AppButton type="primary" :icon="Plus" @click="openCreateDialog">添加第一个连接</AppButton>
     </section>
@@ -463,12 +463,11 @@ onMounted(() => {
 
 .ai-connection-empty {
   display: flex;
-  min-height: 236px;
+  min-height: 260px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--app-space-3);
-  padding: var(--app-space-8) var(--app-space-4);
+  padding: 0 var(--app-space-4);
   text-align: center;
 }
 
@@ -478,24 +477,24 @@ onMounted(() => {
   height: 64px;
   align-items: center;
   justify-content: center;
+  margin-bottom: var(--app-space-4);
   border-radius: 18px;
   background: var(--app-bg-muted);
   color: var(--app-text-subtle);
 }
 
-.ai-connection-empty h3 {
-  margin: var(--app-space-1) 0 0;
-  color: var(--app-text-primary);
-  font-size: var(--app-font-size-md);
+.ai-connection-empty strong {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-sm);
   font-weight: 700;
-  line-height: var(--app-line-height-md);
+  line-height: var(--app-line-height-sm);
 }
 
 .ai-connection-empty p {
-  margin: -4px 0 var(--app-space-1);
-  color: var(--app-text-muted);
-  font-size: var(--app-font-size-sm);
-  line-height: var(--app-line-height-md);
+  margin: 6px 0 var(--app-space-4);
+  color: var(--app-text-subtle);
+  font-size: var(--app-font-size-xs);
+  line-height: var(--app-line-height-xs);
 }
 
 .ai-connection-card-grid {
@@ -790,7 +789,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: var(--app-space-3);
-  margin-top: 7px;
+  margin-top: 11px;
 }
 
 .supported-providers h3 {

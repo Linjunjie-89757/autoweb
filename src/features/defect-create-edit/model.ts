@@ -96,13 +96,13 @@ export function validateDefectForm(form: DefectForm) {
     return '请选择严重级别'
   }
   if (!form.assigneeId.trim()) {
-    return '请输入处理人 ID'
+    return '请选择处理人'
   }
   if (!Number.isFinite(Number(form.assigneeId))) {
-    return '处理人 ID 必须是数字'
+    return '处理人数据异常，请重新选择'
   }
   if (form.relatedCaseId.trim() && !Number.isFinite(Number(form.relatedCaseId))) {
-    return '关联用例 ID 必须是数字'
+    return '关联用例数据异常，请重新选择'
   }
   return ''
 }

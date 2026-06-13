@@ -1,12 +1,15 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 
+import { caseApi, type CaseSummaryItem } from '@/entities/case'
 import {
   defectPriorityOptions,
   defectSeverityOptions,
   type DefectDetail,
   type DefectSummaryItem,
 } from '@/entities/defect'
+import { userApi, type UserItem } from '@/entities/user'
+import { getRequestErrorMessage } from '@/shared/api/error'
 import AppButton from '@/shared/ui/app-button/AppButton.vue'
 import AppDialog from '@/shared/ui/app-dialog/AppDialog.vue'
 
@@ -49,6 +52,66 @@ const form = reactive<DefectForm>(createDefaultDefectForm(props.defaultWorkspace
 const formError = reactive({
   message: '',
 })
+const users = ref<UserItem[]>([])
+const userOptionsLoading = ref(false)
+const userOptionsError = ref('')
+const caseOptions = ref<CaseSummaryItem[]>([])
+const caseOptionsLoading = ref(false)
+const caseOptionsError = ref('')
+let userOptionsLoaded = false
+let caseOptionsRequestSeq = 0
+
+const activeWorkspaceCode = computed(() => form.workspaceCode || props.defaultWorkspaceCode || 'ALL')
+
+function getUserLabel(user: UserItem) {
+  return user.displayName || user.username || `用户 ${user.id}`
+}
+
+function getCaseLabel(item: CaseSummaryItem) {
+  const caseNo = item.caseNo || `#${item.id}`
+  return item.title ? `${caseNo} · ${item.title}` : caseNo
+}
+
+async function loadUserOptions() {
+  if (userOptionsLoaded || userOptionsLoading.value) {
+    return
+  }
+
+  userOptionsLoading.value = true
+  userOptionsError.value = ''
+  try {
+    users.value = await userApi.getUsers()
+    userOptionsLoaded = true
+  } catch (error) {
+    userOptionsError.value = getRequestErrorMessage(error)
+  } finally {
+    userOptionsLoading.value = false
+  }
+}
+
+async function loadCaseOptions(workspaceCode: string) {
+  const requestSeq = ++caseOptionsRequestSeq
+  caseOptionsLoading.value = true
+  caseOptionsError.value = ''
+  try {
+    const page = await caseApi.getCases(workspaceCode, {
+      pageNo: 1,
+      pageSize: 50,
+    })
+    if (requestSeq === caseOptionsRequestSeq) {
+      caseOptions.value = Array.isArray(page.items) ? page.items : []
+    }
+  } catch (error) {
+    if (requestSeq === caseOptionsRequestSeq) {
+      caseOptions.value = []
+      caseOptionsError.value = getRequestErrorMessage(error)
+    }
+  } finally {
+    if (requestSeq === caseOptionsRequestSeq) {
+      caseOptionsLoading.value = false
+    }
+  }
+}
 
 function resetForm() {
   const nextForm =
@@ -78,6 +141,8 @@ watch(
   (visible) => {
     if (visible) {
       resetForm()
+      void loadUserOptions()
+      void loadCaseOptions(activeWorkspaceCode.value)
     }
   },
 )
@@ -87,6 +152,7 @@ watch(
   () => {
     if (props.modelValue) {
       resetForm()
+      void loadCaseOptions(activeWorkspaceCode.value)
     }
   },
 )
@@ -148,8 +214,28 @@ watch(
           </label>
 
           <label class="defect-dialog__field">
-            <span class="is-required">处理人 ID</span>
-            <el-input v-model="form.assigneeId" :disabled="loadingDetail" placeholder="请输入数字 ID" />
+            <span class="is-required">处理人</span>
+            <el-select
+              v-model="form.assigneeId"
+              class="defect-dialog__select"
+              :disabled="loadingDetail || userOptionsLoading"
+              :loading="userOptionsLoading"
+              filterable
+              placeholder="请选择处理人"
+            >
+              <el-option
+                v-for="user in users"
+                :key="user.id"
+                :label="getUserLabel(user)"
+                :value="String(user.id)"
+              >
+                <div class="defect-dialog__option">
+                  <span>{{ getUserLabel(user) }}</span>
+                  <small>{{ user.username }}</small>
+                </div>
+              </el-option>
+            </el-select>
+            <small v-if="userOptionsError" class="defect-dialog__field-error">{{ userOptionsError }}</small>
           </label>
         </div>
 
@@ -189,8 +275,29 @@ watch(
 
         <div class="defect-dialog__grid">
           <label class="defect-dialog__field">
-            <span>关联用例 ID</span>
-            <el-input v-model="form.relatedCaseId" :disabled="loadingDetail" placeholder="可选" />
+            <span>关联用例</span>
+            <el-select
+              v-model="form.relatedCaseId"
+              class="defect-dialog__select"
+              :disabled="loadingDetail || caseOptionsLoading"
+              :loading="caseOptionsLoading"
+              clearable
+              filterable
+              placeholder="可选"
+            >
+              <el-option
+                v-for="item in caseOptions"
+                :key="item.id"
+                :label="getCaseLabel(item)"
+                :value="String(item.id)"
+              >
+                <div class="defect-dialog__option">
+                  <span>{{ item.title || '-' }}</span>
+                  <small>{{ item.caseNo || `#${item.id}` }}</small>
+                </div>
+              </el-option>
+            </el-select>
+            <small v-if="caseOptionsError" class="defect-dialog__field-error">{{ caseOptionsError }}</small>
           </label>
 
           <label class="defect-dialog__field">
@@ -343,6 +450,40 @@ watch(
 
 .defect-dialog__select {
   width: 100%;
+}
+
+.defect-dialog__option {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0;
+}
+
+.defect-dialog__option span {
+  overflow: hidden;
+  color: var(--app-text-primary);
+  font-size: var(--app-font-size-sm);
+  font-weight: 500;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.defect-dialog__option small {
+  overflow: hidden;
+  color: var(--app-text-muted);
+  font-size: var(--app-font-size-xs);
+  font-weight: 400;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.defect-dialog__field-error {
+  color: var(--app-danger);
+  font-size: var(--app-font-size-xs);
+  line-height: var(--app-line-height-xs);
 }
 
 .defect-dialog__segment {

@@ -73,6 +73,24 @@ function displayText(value: string | number | null | undefined) {
   return String(value)
 }
 
+function displayRichText(value: string | null | undefined) {
+  const text = displayText(value)
+  if (text === '-' || !/[<>]/.test(text)) {
+    return text
+  }
+
+  const normalized = text
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|h[1-6])>/gi, '\n')
+
+  if (typeof DOMParser === 'undefined') {
+    return normalized.replace(/<[^>]+>/g, '').trim() || '-'
+  }
+
+  const doc = new DOMParser().parseFromString(normalized, 'text/html')
+  return doc.body.textContent?.trim() || '-'
+}
+
 function formatFileSize(value: number | null | undefined) {
   if (!value || value <= 0) {
     return '-'
@@ -329,7 +347,7 @@ watch(
                 <h4>缺陷描述</h4>
                 <span>复现现象、影响范围和补充信息</span>
               </div>
-              <p class="defect-detail-drawer__text">{{ displayText(detail.description) }}</p>
+              <p class="defect-detail-drawer__text">{{ displayRichText(detail.description) }}</p>
             </div>
 
             <div class="defect-detail-drawer__section">

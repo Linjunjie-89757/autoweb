@@ -1,4 +1,4 @@
-import { httpGet, httpPost, httpPut, request, type ApiResponse } from '@/shared/api/request'
+import { httpDelete, httpGet, httpPost, httpPut, request, type ApiResponse } from '@/shared/api/request'
 
 import type {
   AddDefectCommentPayload,
@@ -159,6 +159,28 @@ export const defectApi = {
     })
 
     return response.data
+  },
+
+  async uploadDefectAttachments(workspaceCode = 'ALL', id: number, files: File[]) {
+    const formData = new FormData()
+    files.forEach(file => formData.append('files', file))
+    const payload = await httpPost<ApiResponse<DefectAttachment[]>, FormData>(`/bugs/${id}/attachments`, formData, {
+      headers: {
+        ...workspaceHeaders(workspaceCode),
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+
+    const attachments = unwrapApiResponse(payload)
+    return Array.isArray(attachments) ? attachments.map(normalizeDefectAttachment) : []
+  },
+
+  async deleteDefectAttachment(workspaceCode = 'ALL', id: number, attachmentId: number) {
+    const payload = await httpDelete<ApiResponse<null>>(`/bugs/${id}/attachments/${attachmentId}`, {
+      headers: workspaceHeaders(workspaceCode),
+    })
+
+    return unwrapApiResponse(payload)
   },
 
   async createDefect(workspaceCode = 'ALL', data: SaveDefectPayload) {

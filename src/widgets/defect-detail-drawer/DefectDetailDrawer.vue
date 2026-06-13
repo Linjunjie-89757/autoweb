@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, ref, watch } from 'vue'
 
 import {
@@ -46,7 +47,10 @@ const commentDraft = ref('')
 const commentSubmitting = ref(false)
 const commentSubmitError = ref('')
 const attachmentDownloadingId = ref<number | null>(null)
+const attachmentRemovingId = ref<number | null>(null)
+const attachmentUploading = ref(false)
 const attachmentErrorMessage = ref('')
+const attachmentInputRef = ref<HTMLInputElement | null>(null)
 const activeTab = ref<'basic' | 'detail' | 'comment' | 'history'>('basic')
 let detailRequestSeq = 0
 let commentsRequestSeq = 0
@@ -278,6 +282,74 @@ async function downloadAttachment(attachment: DefectAttachment) {
   }
 }
 
+function openAttachmentPicker() {
+  attachmentInputRef.value?.click()
+}
+
+async function uploadAttachments(event: Event) {
+  if (!props.defectId || attachmentUploading.value) {
+    return
+  }
+
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  input.value = ''
+  if (!files.length) {
+    return
+  }
+
+  attachmentUploading.value = true
+  attachmentErrorMessage.value = ''
+  try {
+    const nextAttachments = await defectApi.uploadDefectAttachments(props.workspaceCode, props.defectId, files)
+    if (detail.value) {
+      detail.value = {
+        ...detail.value,
+        attachments: [...getAttachments(detail.value), ...nextAttachments],
+      }
+    }
+    ElMessage.success('附件已上传')
+    void loadDetail()
+  } catch (error) {
+    attachmentErrorMessage.value = getRequestErrorMessage(error)
+  } finally {
+    attachmentUploading.value = false
+  }
+}
+
+function isDisposableAttachment(attachment: DefectAttachment) {
+  return attachment.fileName.startsWith('DISPOSABLE-148-')
+}
+
+async function removeAttachment(attachment: DefectAttachment) {
+  if (!props.defectId || attachmentRemovingId.value || !detail.value) {
+    return
+  }
+
+  await ElMessageBox.confirm(`确认删除附件「${attachment.fileName}」？`, '删除附件', {
+    confirmButtonText: '删除',
+    cancelButtonText: '取消',
+    type: 'warning',
+    confirmButtonClass: 'el-button--danger',
+  })
+
+  attachmentRemovingId.value = attachment.id
+  attachmentErrorMessage.value = ''
+  try {
+    await defectApi.deleteDefectAttachment(props.workspaceCode, props.defectId, attachment.id)
+    detail.value = {
+      ...detail.value,
+      attachments: getAttachments(detail.value).filter(item => item.id !== attachment.id),
+    }
+    ElMessage.success('附件已删除')
+    void loadDetail()
+  } catch (error) {
+    attachmentErrorMessage.value = getRequestErrorMessage(error)
+  } finally {
+    attachmentRemovingId.value = null
+  }
+}
+
 watch(
   () => [props.modelValue, props.defectId, props.workspaceCode] as const,
   ([visible]) => {
@@ -286,6 +358,8 @@ watch(
       commentDraft.value = ''
       commentSubmitError.value = ''
       attachmentErrorMessage.value = ''
+      attachmentUploading.value = false
+      attachmentRemovingId.value = null
       void loadDetail()
       void loadComments()
     }
@@ -416,6 +490,18 @@ watch(
                 <h4>附件</h4>
                 <span>{{ getAttachments(detail).length }} 个附件</span>
               </div>
+              <div class="defect-detail-drawer__attachment-toolbar">
+                <input
+                  ref="attachmentInputRef"
+                  class="defect-detail-drawer__file-input"
+                  type="file"
+                  multiple
+                  @change="uploadAttachments"
+                />
+                <AppButton size="small" type="primary" :loading="attachmentUploading" @click="openAttachmentPicker">
+                  上传附件
+                </AppButton>
+              </div>
               <div v-if="getAttachments(detail).length" class="defect-detail-drawer__list">
                 <div
                   v-for="attachment in getAttachments(detail)"
@@ -444,6 +530,17 @@ watch(
                       @click="downloadAttachment(attachment)"
                     >
                       下载
+                    </AppButton>
+                    <AppButton
+                      v-if="isDisposableAttachment(attachment)"
+                      size="small"
+                      type="danger"
+                      plain
+                      :loading="attachmentRemovingId === attachment.id"
+                      :disabled="attachmentRemovingId !== null && attachmentRemovingId !== attachment.id"
+                      @click="removeAttachment(attachment)"
+                    >
+                      删除
                     </AppButton>
                   </div>
                 </div>
@@ -880,6 +977,15 @@ watch(
   border: 1px solid var(--app-border-soft);
   border-radius: var(--app-radius-md);
   background: var(--app-bg-panel);
+}
+
+.defect-detail-drawer__attachment-toolbar {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.defect-detail-drawer__file-input {
+  display: none;
 }
 
 .defect-detail-drawer__attachment-icon {

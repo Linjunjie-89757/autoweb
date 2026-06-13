@@ -3,10 +3,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { RefreshRight } from '@element-plus/icons-vue'
 import { Settings2 } from '@lucide/vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { useRouter } from 'vue-router'
 
 import {
   type AssignDefectPayload,
-  type DefectDetail,
   DefectPriorityBadge,
   DefectSeverityBadge,
   DefectStatusBadge,
@@ -15,11 +15,10 @@ import {
   formatDefectTags,
   type DefectClientFilter,
   type DefectSummaryItem,
-  type SaveDefectPayload,
   type TransitionDefectPayload,
 } from '@/entities/defect'
 import { assignDefect } from '@/features/defect-assign'
-import { DefectCreateEditDialog, type DefectDialogMode } from '@/features/defect-create-edit'
+import { DefectCreateEditDialog } from '@/features/defect-create-edit'
 import { DefectTransitionDialog, transitionDefect } from '@/features/defect-transition'
 import { getRequestErrorMessage } from '@/shared/api/error'
 import AppButton from '@/shared/ui/app-button/AppButton.vue'
@@ -50,6 +49,7 @@ const emit = defineEmits<{
   loaded: [items: DefectSummaryItem[]]
 }>()
 
+const router = useRouter()
 const defects = ref<DefectSummaryItem[]>([])
 const loading = ref(false)
 const errorMessage = ref('')
@@ -58,13 +58,7 @@ const pageSize = ref(10)
 const total = ref(0)
 const totalPages = ref(0)
 const dialogVisible = ref(false)
-const dialogMode = ref<DefectDialogMode>('create')
-const activeDefect = ref<DefectSummaryItem | null>(null)
-const activeDefectDetail = ref<DefectDetail | null>(null)
-const detailLoading = ref(false)
-const detailErrorMessage = ref('')
 const saving = ref(false)
-const editingRowId = ref<number | null>(null)
 const detailDrawerVisible = ref(false)
 const detailDefectId = ref<number | null>(null)
 const activeDetailRowId = ref<number | null>(null)
@@ -76,7 +70,6 @@ const transitioningDefectId = ref<number | null>(null)
 const deletingDefectId = ref<number | null>(null)
 const detailRefreshKey = ref(0)
 let loadRequestSeq = 0
-let detailRequestSeq = 0
 let pendingLoadSignature = ''
 
 const assigneeNameMap = computed(() => new Map((props.assigneeOptions ?? []).map((item) => [item.value, item.label])))
@@ -257,43 +250,14 @@ async function loadDefects() {
 }
 
 function openCreateDialog() {
-  dialogMode.value = 'create'
-  activeDefect.value = null
-  activeDefectDetail.value = null
-  detailErrorMessage.value = ''
-  detailLoading.value = false
   dialogVisible.value = true
-}
-
-async function loadDefectDetail(item: DefectSummaryItem) {
-  const requestSeq = ++detailRequestSeq
-  detailLoading.value = true
-  detailErrorMessage.value = ''
-  editingRowId.value = item.id
-  try {
-    const detail = await defectApi.getDefectDetail(props.workspaceCode, item.id)
-    if (requestSeq === detailRequestSeq) {
-      activeDefectDetail.value = detail
-    }
-  } catch (error) {
-    if (requestSeq === detailRequestSeq) {
-      detailErrorMessage.value = getRequestErrorMessage(error)
-    }
-  } finally {
-    if (requestSeq === detailRequestSeq) {
-      detailLoading.value = false
-      editingRowId.value = null
-    }
-  }
 }
 
 function openEditDialog(item: DefectSummaryItem) {
-  dialogMode.value = 'edit'
-  activeDefect.value = item
-  activeDefectDetail.value = null
-  detailErrorMessage.value = ''
-  dialogVisible.value = true
-  void loadDefectDetail(item)
+  void router.push({
+    path: `/bugs/${item.id}/edit`,
+    query: item.workspaceCode ? { workspace: item.workspaceCode } : undefined,
+  })
 }
 
 function openDetailDrawer(item: DefectSummaryItem) {
@@ -371,16 +335,11 @@ async function deleteActiveDetailDefect() {
   }
 }
 
-async function submitDefect(payload: SaveDefectPayload) {
+async function submitDefect(payload: Parameters<typeof defectApi.createDefect>[1]) {
   saving.value = true
   try {
-    if (dialogMode.value === 'edit' && activeDefect.value) {
-      await defectApi.updateDefect(props.workspaceCode, activeDefect.value.id, payload)
-      ElMessage.success('缺陷更新成功')
-    } else {
-      await defectApi.createDefect(props.workspaceCode, payload)
-      ElMessage.success('缺陷创建成功')
-    }
+    await defectApi.createDefect(props.workspaceCode, payload)
+    ElMessage.success('??????')
     dialogVisible.value = false
     await loadDefects()
     detailRefreshKey.value += 1
@@ -604,7 +563,6 @@ defineExpose({
                 <AppButton size="small" @click="openDetailDrawer(row)">查看</AppButton>
                 <AppButton
                   size="small"
-                  :loading="editingRowId === row.id"
                   :disabled="saving"
                   @click="openEditDialog(row)"
                 >
@@ -646,15 +604,10 @@ defineExpose({
 
     <DefectCreateEditDialog
       v-model="dialogVisible"
-      :mode="dialogMode"
-      :defect-item="activeDefect"
-      :defect-detail="activeDefectDetail"
+      mode="create"
       :saving="saving"
-      :loading-detail="detailLoading"
-      :detail-error-message="detailErrorMessage"
       :default-workspace-code="workspaceCode"
       @submit="submitDefect"
-      @retry-detail="activeDefect && loadDefectDetail(activeDefect)"
     />
 
     <DefectDetailDrawer

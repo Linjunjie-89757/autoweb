@@ -5,6 +5,7 @@ import { loadCurrentUser, sessionState } from '@/entities/session'
 import ApiAutomationPage from '@/pages/automation-api/ApiAutomationPage.vue'
 import CasesPage from '@/pages/cases/CasesPage.vue'
 import ConfigCenterPage from '@/pages/config-center/ConfigCenterPage.vue'
+import DefectEditPage from '@/pages/defects/DefectEditPage.vue'
 import DefectsPage from '@/pages/defects/DefectsPage.vue'
 import LoginPage from '@/pages/login/LoginPage.vue'
 import PlaceholderPage from '@/pages/placeholder/PlaceholderPage.vue'
@@ -68,6 +69,15 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '缺陷管理',
           description: '按工作空间查看缺陷统计和真实列表，后续继续补齐详情与流转。',
+        },
+      },
+      {
+        path: 'bugs/:id/edit',
+        name: 'bug-edit',
+        component: DefectEditPage,
+        meta: {
+          title: '编辑缺陷',
+          description: '按页面式编辑节奏调整缺陷基础信息。',
         },
       },
       {

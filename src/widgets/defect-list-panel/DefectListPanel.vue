@@ -57,6 +57,7 @@ const saving = ref(false)
 const editingRowId = ref<number | null>(null)
 const detailDrawerVisible = ref(false)
 const detailDefectId = ref<number | null>(null)
+const activeDetailRowId = ref<number | null>(null)
 const assignDialogVisible = ref(false)
 const assigningDefect = ref<DefectSummaryItem | null>(null)
 const assigningDefectId = ref<number | null>(null)
@@ -176,7 +177,12 @@ function openEditDialog(item: DefectSummaryItem) {
 
 function openDetailDrawer(item: DefectSummaryItem) {
   detailDefectId.value = item.id
+  activeDetailRowId.value = item.id
   detailDrawerVisible.value = true
+}
+
+function getRowClassName({ row }: { row: DefectSummaryItem }) {
+  return activeDetailRowId.value === row.id ? 'is-detail-active' : ''
 }
 
 function openAssignDialog(item: DefectSummaryItem) {
@@ -249,11 +255,19 @@ watch(
   () => {
     dialogVisible.value = false
     detailDrawerVisible.value = false
+    activeDetailRowId.value = null
     assignDialogVisible.value = false
     transitionDialogVisible.value = false
     reloadFromFirstPage()
   },
 )
+
+watch(detailDrawerVisible, (visible) => {
+  if (!visible) {
+    activeDetailRowId.value = null
+    detailDefectId.value = null
+  }
+})
 
 watch(
   () => props.filter,
@@ -321,6 +335,7 @@ defineExpose({
           class="defect-list-panel__table"
           size="small"
           row-key="id"
+          :row-class-name="getRowClassName"
         >
           <el-table-column class-name="defect-list-panel__code-cell" prop="bugNo" label="缺陷编号" min-width="144" fixed="left">
             <template #default="{ row }: { row: DefectSummaryItem }">
@@ -569,6 +584,15 @@ defineExpose({
 
 .defect-list-panel__table :deep(.el-table__row:hover > td.el-table__cell) {
   background: #f8fafc;
+}
+
+.defect-list-panel__table :deep(.el-table__row.is-detail-active > td.el-table__cell) {
+  background: #eff6ff;
+}
+
+.defect-list-panel__table :deep(.el-table__row.is-detail-active .defect-list-panel__code),
+.defect-list-panel__table :deep(.el-table__row.is-detail-active .defect-list-panel__title) {
+  color: var(--app-primary);
 }
 
 .defect-list-panel__table :deep(.el-table__row td) {

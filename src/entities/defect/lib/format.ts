@@ -14,15 +14,19 @@ export function formatDefectDateTime(value: string | null | undefined) {
 
 export function getDefectPriorityTone(priority: string) {
   if (priority === 'P0') {
-    return 'danger'
+    return 'critical'
   }
   if (priority === 'P1') {
-    return 'warning'
+    return 'p1'
   }
   if (priority === 'P2') {
-    return 'primary'
+    return 'p2'
   }
-  return 'default'
+  if (priority === 'P3') {
+    return 'low'
+  }
+
+  return 'neutral'
 }
 
 export function getDefectStatusMeta(status: string) {
@@ -32,32 +36,38 @@ export function getDefectStatusMeta(status: string) {
     return { label: option?.label || status || '-', tone: 'success' as const }
   }
   if (status === 'REJECTED') {
-    return { label: option?.label || status || '-', tone: 'danger' as const }
+    return { label: option?.label || status || '-', tone: 'muted' as const }
   }
-  if (status === 'IN_PROGRESS' || status === 'PENDING_VERIFY') {
-    return { label: option?.label || status || '-', tone: 'warning' as const }
+  if (status === 'IN_PROGRESS') {
+    return { label: option?.label || status || '-', tone: 'processing' as const }
+  }
+  if (status === 'PENDING_VERIFY') {
+    return { label: option?.label || status || '-', tone: 'verify' as const }
   }
   if (status === 'ASSIGNED') {
-    return { label: option?.label || status || '-', tone: 'primary' as const }
+    return { label: option?.label || status || '-', tone: 'assigned' as const }
   }
 
-  return { label: option?.label || status || '-', tone: 'default' as const }
+  return { label: option?.label || status || '-', tone: 'neutral' as const }
 }
 
 export function getDefectSeverityMeta(severity: string) {
   const option = defectSeverityOptions.find((item) => item.value === severity)
 
   if (severity === 'CRITICAL') {
-    return { label: option?.label || severity || '-', tone: 'danger' as const }
+    return { label: option?.label || severity || '-', tone: 'critical' as const }
   }
   if (severity === 'HIGH') {
-    return { label: option?.label || severity || '-', tone: 'warning' as const }
+    return { label: option?.label || severity || '-', tone: 'high' as const }
   }
   if (severity === 'MEDIUM') {
-    return { label: option?.label || severity || '-', tone: 'primary' as const }
+    return { label: option?.label || severity || '-', tone: 'medium' as const }
+  }
+  if (severity === 'LOW') {
+    return { label: option?.label || severity || '-', tone: 'low' as const }
   }
 
-  return { label: option?.label || severity || '-', tone: 'default' as const }
+  return { label: option?.label || severity || '-', tone: 'neutral' as const }
 }
 
 export function formatDefectTags(tags: string[] | null | undefined) {

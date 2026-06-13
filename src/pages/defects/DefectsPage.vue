@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 
 import { defectApi, type DefectClientFilter, type DefectStatistics } from '@/entities/defect'
+import { userApi, type UserItem } from '@/entities/user'
 import { workspaceApi, type WorkspaceItem } from '@/entities/workspace'
 import { getRequestErrorMessage } from '@/shared/api/error'
 import AppPage from '@/shared/ui/app-page/AppPage.vue'
@@ -12,6 +13,7 @@ import { DefectSummaryPanel } from '@/widgets/defect-summary-panel'
 const workspaceCode = ref('ALL')
 const workspaceSelectorCode = ref('ALL')
 const workspaces = ref<WorkspaceItem[]>([])
+const users = ref<UserItem[]>([])
 const workspaceLoading = ref(false)
 const workspaceReady = ref(false)
 const workspaceErrorMessage = ref('')
@@ -23,6 +25,8 @@ const filter = ref<DefectClientFilter>({
   status: '',
   priority: '',
   severity: '',
+  assigneeId: '',
+  workspaceCode: '',
 })
 const listPanelRef = ref<InstanceType<typeof DefectListPanel> | null>(null)
 
@@ -38,6 +42,20 @@ const workspaceOptions = computed(() => {
 
   return options
 })
+
+const assigneeOptions = computed(() => users.value.map((item) => ({
+  label: item.displayName || item.username,
+  value: String(item.id),
+})))
+
+const workspaceFilterOptions = computed(() => workspaces.value
+  .filter((item) => item.workspaceCode !== 'ALL')
+  .map((item) => ({
+    label: item.workspaceName || item.workspaceCode,
+    value: item.workspaceCode,
+  })))
+
+const showWorkspaceFilter = computed(() => workspaceCode.value === 'ALL')
 
 function resolveDefaultWorkspaceCode(items: WorkspaceItem[]) {
   const selected = items.find((item) => item.current || item.isCurrent || item.default || item.isDefault)
@@ -63,6 +81,14 @@ async function loadWorkspaces() {
   }
 }
 
+async function loadUsers() {
+  try {
+    users.value = await userApi.getUsers()
+  } catch {
+    users.value = []
+  }
+}
+
 async function loadStatistics() {
   statisticsLoading.value = true
   statisticsErrorMessage.value = ''
@@ -84,18 +110,27 @@ function handleCreateDefect() {
   listPanelRef.value?.openCreateDialog()
 }
 
+function handleStatSelect(status: string) {
+  filter.value = {
+    ...filter.value,
+    status,
+  }
+}
+
 function resetFilters() {
   filter.value = {
     keyword: '',
     status: '',
     priority: '',
     severity: '',
+    assigneeId: '',
+    workspaceCode: '',
   }
 }
 
 onMounted(() => {
   void (async () => {
-    await loadWorkspaces()
+    await Promise.all([loadWorkspaces(), loadUsers()])
     await loadStatistics()
   })()
 })
@@ -135,22 +170,32 @@ onMounted(() => {
         :statistics="statistics"
         :loading="statisticsLoading"
         :error-message="statisticsErrorMessage"
+        :active-status="filter.status"
         @retry="loadStatistics"
+        @select="handleStatSelect"
       />
 
-      <DefectFilterPanel
-        v-model="filter"
-        :show-create-button="workspaceReady"
-        @reset="resetFilters"
-        @create="handleCreateDefect"
-      />
+      <section class="defects-page__list-shell">
+        <DefectFilterPanel
+          v-model="filter"
+          :assignee-options="assigneeOptions"
+          :workspace-options="workspaceFilterOptions"
+          :show-create-button="workspaceReady"
+          :show-workspace-filter="showWorkspaceFilter"
+          embedded
+          @reset="resetFilters"
+          @create="handleCreateDefect"
+        />
 
-      <DefectListPanel
-        v-if="workspaceReady"
-        ref="listPanelRef"
-        :workspace-code="workspaceCode"
-        :filter="filter"
-      />
+        <DefectListPanel
+          v-if="workspaceReady"
+          ref="listPanelRef"
+          :workspace-code="workspaceCode"
+          :filter="filter"
+          :assignee-options="assigneeOptions"
+          embedded
+        />
+      </section>
     </div>
   </AppPage>
 </template>
@@ -161,6 +206,14 @@ onMounted(() => {
   min-width: 0;
   flex-direction: column;
   gap: var(--app-space-5);
+}
+
+.defects-page__list-shell {
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-lg);
+  background: var(--app-bg-panel);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
 }
 
 .defects-workspace-select {

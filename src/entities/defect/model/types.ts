@@ -115,6 +115,8 @@ export interface DefectClientFilter {
   status: string
   priority: string
   severity: string
+  assigneeId: string
+  workspaceCode: string
 }
 
 export interface DefectListQuery {

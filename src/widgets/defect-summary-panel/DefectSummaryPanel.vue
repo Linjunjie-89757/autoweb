@@ -9,17 +9,20 @@ type DefectSummaryCard = {
   label: string
   value: number
   description: string
-  tone: 'primary' | 'assigned' | 'processing' | 'verify' | 'success'
+  status: string
+  tone: 'primary' | 'assigned' | 'processing' | 'verify'
 }
 
 const props = defineProps<{
   statistics: DefectStatistics | null
   loading?: boolean
   errorMessage?: string
+  activeStatus?: string
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   retry: []
+  select: [status: string]
 }>()
 
 const stats = computed<DefectSummaryCard[]>(() => {
@@ -34,13 +37,24 @@ const stats = computed<DefectSummaryCard[]>(() => {
   }
 
   return [
-    { label: '缺陷总数', value: source.total, description: '全部缺陷', tone: 'primary' },
-    { label: '待处理', value: source.todo, description: '待指派和待跟进', tone: 'assigned' },
-    { label: '处理中', value: source.inProgress, description: '正在修复中', tone: 'processing' },
-    { label: '待验证', value: source.pendingVerify, description: '等待验证结果', tone: 'verify' },
-    { label: '已关闭', value: source.closed, description: '已确认解决', tone: 'success' },
+    { label: '缺陷总数', value: source.total, description: '全部缺陷', status: '', tone: 'primary' },
+    { label: '待处理', value: source.assigned, description: '已指派待处理', status: 'ASSIGNED', tone: 'assigned' },
+    { label: '处理中', value: source.inProgress, description: '正在处理中', status: 'IN_PROGRESS', tone: 'processing' },
+    { label: '待验证', value: source.pendingVerify, description: '等待验证结果', status: 'PENDING_VERIFY', tone: 'verify' },
   ]
 })
+
+function isActive(status: string) {
+  if (!status) {
+    return !props.activeStatus
+  }
+
+  return props.activeStatus === status
+}
+
+function handleSelect(status: string) {
+  emit('select', status)
+}
 </script>
 
 <template>
@@ -49,7 +63,15 @@ const stats = computed<DefectSummaryCard[]>(() => {
       v-for="stat in stats"
       :key="stat.label"
       class="defect-summary-panel__card"
-      :class="`defect-summary-panel__card--${stat.tone}`"
+      :class="[
+        `defect-summary-panel__card--${stat.tone}`,
+        { 'defect-summary-panel__card--active': isActive(stat.status) },
+      ]"
+      role="button"
+      tabindex="0"
+      @click="handleSelect(stat.status)"
+      @keydown.enter.prevent="handleSelect(stat.status)"
+      @keydown.space.prevent="handleSelect(stat.status)"
     >
       <div class="defect-summary-panel__card-head">
         <span>{{ stat.label }}</span>
@@ -69,19 +91,20 @@ const stats = computed<DefectSummaryCard[]>(() => {
 <style scoped>
 .defect-summary-panel {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: var(--app-space-4);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .defect-summary-panel__card {
   display: grid;
-  gap: var(--app-space-2);
-  min-height: 120px;
-  padding: var(--app-space-4) var(--app-space-5);
+  gap: 10px;
+  min-height: 144px;
+  padding: 20px 24px;
   border: 1px solid var(--app-border);
   border-radius: var(--app-radius-lg);
   background: var(--app-bg-panel);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+  cursor: pointer;
   transition:
     border-color 160ms ease,
     box-shadow 160ms ease,
@@ -94,11 +117,18 @@ const stats = computed<DefectSummaryCard[]>(() => {
   transform: translateY(-1px);
 }
 
+.defect-summary-panel__card--active {
+  border-color: #bfdbfe;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow: 0 10px 24px rgba(59, 130, 246, 0.08);
+}
+
 .defect-summary-panel__card-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--app-space-3);
+  margin-bottom: 6px;
 }
 
 .defect-summary-panel__card-head span {
@@ -157,11 +187,11 @@ const stats = computed<DefectSummaryCard[]>(() => {
 
 .defect-summary-panel__error {
   display: flex;
-  min-height: 120px;
+  min-height: 144px;
   align-items: center;
   justify-content: space-between;
   gap: var(--app-space-3);
-  padding: var(--app-space-4) var(--app-space-5);
+  padding: 20px 24px;
   border: 1px solid #fecaca;
   border-radius: var(--app-radius-lg);
   background: var(--app-danger-soft);
@@ -178,7 +208,7 @@ const stats = computed<DefectSummaryCard[]>(() => {
 
 @media (max-width: 1180px) {
   .defect-summary-panel {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

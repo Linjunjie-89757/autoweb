@@ -13,6 +13,10 @@ import AppButton from '@/shared/ui/app-button/AppButton.vue'
 const props = defineProps<{
   modelValue: DefectClientFilter
   showCreateButton?: boolean
+  embedded?: boolean
+  assigneeOptions?: Array<{ label: string; value: string }>
+  workspaceOptions?: Array<{ label: string; value: string }>
+  showWorkspaceFilter?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -26,6 +30,8 @@ const form = reactive<DefectClientFilter>({
   status: props.modelValue.status,
   priority: props.modelValue.priority,
   severity: props.modelValue.severity,
+  assigneeId: props.modelValue.assigneeId,
+  workspaceCode: props.modelValue.workspaceCode,
 })
 let syncingFromModel = false
 
@@ -34,7 +40,9 @@ function isSameFilter(left: DefectClientFilter, right: DefectClientFilter) {
     left.keyword === right.keyword &&
     left.status === right.status &&
     left.priority === right.priority &&
-    left.severity === right.severity
+    left.severity === right.severity &&
+    left.assigneeId === right.assigneeId &&
+    left.workspaceCode === right.workspaceCode
   )
 }
 
@@ -73,13 +81,18 @@ function resetFilters() {
 </script>
 
 <template>
-  <section class="defect-filter-panel">
+  <section
+    :class="[
+      'defect-filter-panel',
+      { 'defect-filter-panel--embedded': embedded },
+    ]"
+  >
     <div class="defect-filter-panel__left">
       <el-input
         v-model="form.keyword"
         class="defect-filter-panel__search"
         clearable
-        placeholder="搜索编号 / 标题 / 处理人"
+        placeholder="搜索缺陷编号 / 标题 / 描述"
         :prefix-icon="Search"
       />
       <el-select v-model="form.status" class="defect-filter-panel__control" clearable placeholder="状态">
@@ -91,10 +104,32 @@ function resetFilters() {
       <el-select v-model="form.severity" class="defect-filter-panel__control" clearable placeholder="严重级别">
         <el-option v-for="item in defectSeverityOptions" :key="item.value" :label="item.label" :value="item.value" />
       </el-select>
+      <el-select v-model="form.assigneeId" class="defect-filter-panel__control" clearable placeholder="处理人">
+        <el-option
+          v-for="item in assigneeOptions ?? []"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value"
+        />
+      </el-select>
+      <el-select
+        v-if="showWorkspaceFilter"
+        v-model="form.workspaceCode"
+        class="defect-filter-panel__control"
+        clearable
+        placeholder="所属空间"
+      >
+        <el-option
+          v-for="item in workspaceOptions ?? []"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value"
+        />
+      </el-select>
+      <AppButton :icon="RefreshRight" @click="resetFilters">重置</AppButton>
     </div>
 
     <div class="defect-filter-panel__right">
-      <AppButton :icon="RefreshRight" @click="resetFilters">重置</AppButton>
       <AppButton v-if="showCreateButton" type="primary" :icon="Plus" @click="$emit('create')">新增缺陷</AppButton>
     </div>
   </section>
@@ -111,6 +146,14 @@ function resetFilters() {
   border-radius: var(--app-radius-lg);
   background: var(--app-bg-panel);
   box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+.defect-filter-panel--embedded {
+  border: 0;
+  border-bottom: 1px solid var(--app-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .defect-filter-panel__left,
@@ -136,7 +179,7 @@ function resetFilters() {
 }
 
 .defect-filter-panel__control {
-  width: 132px;
+  width: 136px;
 }
 
 .defect-filter-panel :deep(.el-input__wrapper),

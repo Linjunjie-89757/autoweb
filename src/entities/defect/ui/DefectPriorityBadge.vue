@@ -22,32 +22,30 @@ const tone = computed(() => getDefectPriorityTone(props.priority))
   width: fit-content;
   align-items: center;
   justify-content: center;
-  min-height: 24px;
-  padding: 0 var(--app-space-2);
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
-  background: var(--app-bg-panel);
-  color: var(--app-text-secondary);
-  font-size: var(--app-font-size-xs);
-  line-height: var(--app-line-height-xs);
+  min-height: 20px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
   white-space: nowrap;
 }
 
-.defect-badge--primary {
-  border-color: #bfdbfe;
-  background: var(--app-primary-soft);
-  color: var(--app-primary);
+.defect-badge--critical,
+.defect-badge--p1 {
+  background: #fee2e2;
+  color: #b91c1c;
 }
 
-.defect-badge--warning {
-  border-color: #fed7aa;
-  background: var(--app-warning-soft);
-  color: var(--app-warning);
+.defect-badge--p2 {
+  background: #fef9c3;
+  color: #a16207;
 }
 
-.defect-badge--danger {
-  border-color: #fecaca;
-  background: var(--app-danger-soft);
-  color: var(--app-danger);
+.defect-badge--low,
+.defect-badge--neutral {
+  background: #f3f4f6;
+  color: #374151;
 }
 </style>

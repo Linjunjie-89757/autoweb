@@ -1,9 +1,14 @@
 <script setup lang="ts">
-defineProps<{
+withDefaults(defineProps<{
   modelValue: boolean
   title?: string
   size?: string | number
-}>()
+  withHeader?: boolean
+  drawerClass?: string
+}>(), {
+  withHeader: true,
+  drawerClass: '',
+})
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
@@ -15,6 +20,8 @@ const emit = defineEmits<{
     :model-value="modelValue"
     :title="title"
     :size="size"
+    :with-header="withHeader"
+    :class="drawerClass"
     append-to-body
     @update:model-value="emit('update:modelValue', $event)"
   >

@@ -1,4 +1,4 @@
-import { httpGet, httpPost, httpPut, type ApiResponse } from '@/shared/api/request'
+import { httpGet, httpPost, httpPut, request, type ApiResponse } from '@/shared/api/request'
 
 import type {
   AddDefectCommentPayload,
@@ -150,6 +150,15 @@ export const defectApi = {
     })
 
     return normalizeDefectComment(unwrapApiResponse(payload))
+  },
+
+  async downloadDefectAttachment(workspaceCode = 'ALL', id: number, attachmentId: number) {
+    const response = await request.get<Blob>(`/bugs/${id}/attachments/${attachmentId}/download`, {
+      headers: workspaceHeaders(workspaceCode),
+      responseType: 'blob',
+    })
+
+    return response.data
   },
 
   async createDefect(workspaceCode = 'ALL', data: SaveDefectPayload) {

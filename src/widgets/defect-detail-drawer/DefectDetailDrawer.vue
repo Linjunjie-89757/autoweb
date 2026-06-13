@@ -45,6 +45,8 @@ const commentsErrorMessage = ref('')
 const commentDraft = ref('')
 const commentSubmitting = ref(false)
 const commentSubmitError = ref('')
+const attachmentDownloadingId = ref<number | null>(null)
+const attachmentErrorMessage = ref('')
 const activeTab = ref<'basic' | 'detail' | 'comment' | 'history'>('basic')
 let detailRequestSeq = 0
 let commentsRequestSeq = 0
@@ -141,6 +143,17 @@ function getAttachmentTypeTone(attachment: DefectAttachment) {
     return 'zip'
   }
   return 'neutral'
+}
+
+function triggerBlobDownload(blob: Blob, fileName: string) {
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName || 'attachment'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.URL.revokeObjectURL(url)
 }
 
 function readActivityString(activity: DefectActivityRecord, keys: string[]) {
@@ -248,6 +261,23 @@ async function submitComment() {
   }
 }
 
+async function downloadAttachment(attachment: DefectAttachment) {
+  if (!props.defectId || attachmentDownloadingId.value) {
+    return
+  }
+
+  attachmentDownloadingId.value = attachment.id
+  attachmentErrorMessage.value = ''
+  try {
+    const blob = await defectApi.downloadDefectAttachment(props.workspaceCode, props.defectId, attachment.id)
+    triggerBlobDownload(blob, attachment.fileName)
+  } catch (error) {
+    attachmentErrorMessage.value = getRequestErrorMessage(error)
+  } finally {
+    attachmentDownloadingId.value = null
+  }
+}
+
 watch(
   () => [props.modelValue, props.defectId, props.workspaceCode] as const,
   ([visible]) => {
@@ -255,6 +285,7 @@ watch(
       activeTab.value = 'basic'
       commentDraft.value = ''
       commentSubmitError.value = ''
+      attachmentErrorMessage.value = ''
       void loadDetail()
       void loadComments()
     }
@@ -405,9 +436,22 @@ watch(
                       · {{ formatDefectDateTime(attachment.createdAt) }}
                     </small>
                   </span>
+                  <div class="defect-detail-drawer__attachment-actions">
+                    <AppButton
+                      size="small"
+                      :loading="attachmentDownloadingId === attachment.id"
+                      :disabled="attachmentDownloadingId !== null && attachmentDownloadingId !== attachment.id"
+                      @click="downloadAttachment(attachment)"
+                    >
+                      下载
+                    </AppButton>
+                  </div>
                 </div>
               </div>
               <p v-else class="defect-detail-drawer__muted">暂无附件</p>
+              <p v-if="attachmentErrorMessage" class="defect-detail-drawer__form-error">
+                {{ attachmentErrorMessage }}
+              </p>
             </div>
           </section>
 
@@ -907,6 +951,13 @@ watch(
   color: var(--app-text-muted);
   font-size: var(--app-font-size-xs);
   line-height: var(--app-line-height-xs);
+}
+
+.defect-detail-drawer__attachment-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .defect-detail-drawer__timeline {

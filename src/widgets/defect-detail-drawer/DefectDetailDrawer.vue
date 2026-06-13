@@ -18,6 +18,8 @@ import AppDrawer from '@/shared/ui/app-drawer/AppDrawer.vue'
 import AppEmptyState from '@/shared/ui/app-empty-state/AppEmptyState.vue'
 import AppLoadingState from '@/shared/ui/app-loading-state/AppLoadingState.vue'
 
+type DefectActivityRecord = Record<string, unknown>
+
 const props = withDefaults(
   defineProps<{
     modelValue: boolean
@@ -88,6 +90,66 @@ function formatFileSize(value: number | null | undefined) {
 
 function getAttachments(value: DefectDetail | null): DefectAttachment[] {
   return Array.isArray(value?.attachments) ? value.attachments : []
+}
+
+function getActivities(value: DefectDetail | null): DefectActivityRecord[] {
+  return Array.isArray(value?.activities) ? (value.activities as DefectActivityRecord[]) : []
+}
+
+function getAttachmentTypeLabel(attachment: DefectAttachment) {
+  const fileName = attachment.fileName || ''
+  const ext = fileName.includes('.') ? fileName.split('.').pop()?.toUpperCase() : ''
+  return ext || 'FILE'
+}
+
+function getAttachmentTypeTone(attachment: DefectAttachment) {
+  const label = getAttachmentTypeLabel(attachment)
+  if (['PNG', 'JPG', 'JPEG', 'WEBP', 'GIF', 'BMP', 'SVG'].includes(label)) {
+    return 'image'
+  }
+  if (label === 'PDF') {
+    return 'pdf'
+  }
+  if (['DOC', 'DOCX'].includes(label)) {
+    return 'doc'
+  }
+  if (['XLS', 'XLSX', 'CSV'].includes(label)) {
+    return 'xls'
+  }
+  if (['ZIP', 'RAR', '7Z'].includes(label)) {
+    return 'zip'
+  }
+  return 'neutral'
+}
+
+function readActivityString(activity: DefectActivityRecord, keys: string[]) {
+  for (const key of keys) {
+    const value = activity[key]
+    if (typeof value === 'string' && value.trim()) {
+      return value
+    }
+    if (typeof value === 'number') {
+      return String(value)
+    }
+  }
+
+  return ''
+}
+
+function getActivityKey(activity: DefectActivityRecord, index: number) {
+  return readActivityString(activity, ['id', 'activityId', 'createdAt', 'occurredAt']) || `activity-${index}`
+}
+
+function getActivityTitle(activity: DefectActivityRecord) {
+  return readActivityString(activity, ['title', 'type', 'action']) || '缺陷记录'
+}
+
+function getActivityDetail(activity: DefectActivityRecord) {
+  return readActivityString(activity, ['detail', 'content', 'comment', 'description', 'message']) || '-'
+}
+
+function getActivityTime(activity: DefectActivityRecord) {
+  return formatDefectDateTime(readActivityString(activity, ['occurredAt', 'createdAt', 'updatedAt']))
 }
 
 async function loadDetail() {
@@ -213,27 +275,27 @@ watch(
                 <span>缺陷流转的核心字段</span>
               </div>
               <dl class="defect-detail-drawer__meta">
-                <div>
+                <div class="defect-detail-drawer__meta-row">
                   <dt>所属空间</dt>
                   <dd>{{ displayText(detail.workspaceName || detail.workspaceCode) }}</dd>
                 </div>
-                <div>
+                <div class="defect-detail-drawer__meta-row">
                   <dt>处理人</dt>
                   <dd>{{ displayText(detail.assigneeName) }}</dd>
                 </div>
-                <div>
+                <div class="defect-detail-drawer__meta-row">
                   <dt>报告人</dt>
                   <dd>{{ displayText(detail.reporterName) }}</dd>
                 </div>
-                <div>
+                <div class="defect-detail-drawer__meta-row">
                   <dt>关联用例</dt>
                   <dd>{{ displayText(detail.relatedCaseId || detail.relatedCaseCount) }}</dd>
                 </div>
-                <div>
+                <div class="defect-detail-drawer__meta-row">
                   <dt>创建时间</dt>
                   <dd>{{ formatDefectDateTime(detail.createdAt) }}</dd>
                 </div>
-                <div>
+                <div class="defect-detail-drawer__meta-row">
                   <dt>更新时间</dt>
                   <dd>{{ formatDefectDateTime(detail.updatedAt) }}</dd>
                 </div>
@@ -279,13 +341,21 @@ watch(
                 <div
                   v-for="attachment in getAttachments(detail)"
                   :key="attachment.id"
-                  class="defect-detail-drawer__list-item"
+                  class="defect-detail-drawer__attachment-row"
                 >
-                  <strong>{{ displayText(attachment.fileName) }}</strong>
-                  <span>
-                    {{ formatFileSize(attachment.fileSize) }}
-                    · {{ displayText(attachment.uploadedByName) }}
-                    · {{ formatDefectDateTime(attachment.createdAt) }}
+                  <span
+                    class="defect-detail-drawer__attachment-icon"
+                    :data-tone="getAttachmentTypeTone(attachment)"
+                  >
+                    {{ getAttachmentTypeLabel(attachment) }}
+                  </span>
+                  <span class="defect-detail-drawer__attachment-main">
+                    <strong>{{ displayText(attachment.fileName) }}</strong>
+                    <small>
+                      {{ formatFileSize(attachment.fileSize) }}
+                      · {{ displayText(attachment.uploadedByName) }}
+                      · {{ formatDefectDateTime(attachment.createdAt) }}
+                    </small>
                   </span>
                 </div>
               </div>
@@ -308,9 +378,11 @@ watch(
 
               <div v-else-if="comments.length" class="defect-detail-drawer__list">
                 <div v-for="comment in comments" :key="comment.id" class="defect-detail-drawer__list-item">
-                  <strong>{{ displayText(comment.commenterName) }}</strong>
+                  <div class="defect-detail-drawer__comment-top">
+                    <strong>{{ displayText(comment.commenterName) }}</strong>
+                    <span>{{ formatDefectDateTime(comment.createdAt) }}</span>
+                  </div>
                   <p>{{ displayText(comment.content) }}</p>
-                  <span>{{ formatDefectDateTime(comment.createdAt) }}</span>
                 </div>
               </div>
 
@@ -324,7 +396,21 @@ watch(
                 <h4>历史</h4>
                 <span>{{ activityCount }} 条记录</span>
               </div>
-              <p class="defect-detail-drawer__muted">当前阶段仅保留历史入口，待后续按后端活动数据做只读时间线。</p>
+              <div v-if="getActivities(detail).length" class="defect-detail-drawer__timeline">
+                <div
+                  v-for="(activity, index) in getActivities(detail)"
+                  :key="getActivityKey(activity, index)"
+                  class="defect-detail-drawer__timeline-item"
+                >
+                  <span class="defect-detail-drawer__timeline-dot" />
+                  <span class="defect-detail-drawer__timeline-main">
+                    <strong>{{ getActivityTitle(activity) }}</strong>
+                    <small>{{ getActivityDetail(activity) }}</small>
+                  </span>
+                  <time>{{ getActivityTime(activity) }}</time>
+                </div>
+              </div>
+              <p v-else class="defect-detail-drawer__muted">暂无变更历史</p>
             </div>
           </section>
         </template>
@@ -496,10 +582,10 @@ watch(
   display: flex;
   flex-direction: column;
   gap: var(--app-space-3);
-  padding: var(--app-space-4);
+  padding: var(--app-space-5);
   border: 1px solid var(--app-border-soft);
   border-radius: var(--app-radius-lg);
-  background: var(--app-bg-subtle);
+  background: var(--app-bg-panel);
 }
 
 .defect-detail-drawer__section--hero {
@@ -528,26 +614,44 @@ watch(
 
 .defect-detail-drawer__meta {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--app-space-3);
+  grid-template-columns: 1fr;
+  overflow: hidden;
   margin: 0;
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--app-radius-md);
+  background: var(--app-bg-panel);
 }
 
-.defect-detail-drawer__meta div {
+.defect-detail-drawer__meta-row {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  min-height: 42px;
   min-width: 0;
+  align-items: center;
+  border-bottom: 1px solid var(--app-border-soft);
+}
+
+.defect-detail-drawer__meta-row:last-child {
+  border-bottom: 0;
 }
 
 .defect-detail-drawer__meta dt {
-  margin-bottom: var(--app-space-1);
+  height: 100%;
+  margin: 0;
+  padding: 11px var(--app-space-4);
+  background: var(--app-bg-subtle);
   color: var(--app-text-subtle);
   font-size: var(--app-font-size-xs);
+  font-weight: 600;
+  line-height: 20px;
 }
 
 .defect-detail-drawer__meta dd {
   margin: 0;
+  padding: 11px var(--app-space-4);
   color: var(--app-text-main);
   font-size: var(--app-font-size-sm);
-  line-height: 22px;
+  line-height: 20px;
   overflow-wrap: anywhere;
 }
 
@@ -555,13 +659,13 @@ watch(
   margin: 0;
   max-height: 340px;
   overflow: auto;
-  padding: var(--app-space-3);
+  padding: var(--app-space-4);
   border: 1px solid var(--app-border-soft);
   border-radius: var(--app-radius-md);
-  background: var(--app-bg-panel);
+  background: var(--app-bg-subtle);
   color: var(--app-text-main);
   font-size: var(--app-font-size-sm);
-  line-height: 22px;
+  line-height: 24px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -581,8 +685,8 @@ watch(
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: var(--app-space-1);
-  padding: var(--app-space-3);
+  gap: var(--app-space-2);
+  padding: var(--app-space-4);
   border: 1px solid var(--app-border-soft);
   border-radius: var(--app-radius-md);
   background: var(--app-bg-panel);
@@ -593,6 +697,20 @@ watch(
   color: var(--app-text-primary);
   font-size: var(--app-font-size-sm);
   overflow-wrap: anywhere;
+}
+
+.defect-detail-drawer__comment-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--app-space-3);
+}
+
+.defect-detail-drawer__comment-top span {
+  flex: 0 0 auto;
+  color: var(--app-text-subtle);
+  font-size: var(--app-font-size-xs);
+  line-height: var(--app-line-height-xs);
 }
 
 .defect-detail-drawer__list-item p {
@@ -610,6 +728,147 @@ watch(
   font-size: var(--app-font-size-xs);
   line-height: var(--app-line-height-xs);
   overflow-wrap: anywhere;
+}
+
+.defect-detail-drawer__attachment-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--app-space-3);
+  padding: var(--app-space-3);
+  border: 1px solid var(--app-border-soft);
+  border-radius: var(--app-radius-md);
+  background: var(--app-bg-panel);
+}
+
+.defect-detail-drawer__attachment-icon {
+  display: inline-flex;
+  width: 42px;
+  height: 48px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-sm);
+  background: var(--app-bg-subtle);
+  color: var(--app-text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.defect-detail-drawer__attachment-icon[data-tone='pdf'] {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: var(--app-danger);
+}
+
+.defect-detail-drawer__attachment-icon[data-tone='doc'] {
+  border-color: #bfdbfe;
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+}
+
+.defect-detail-drawer__attachment-icon[data-tone='xls'] {
+  border-color: #bbf7d0;
+  background: var(--app-success-soft);
+  color: var(--app-success);
+}
+
+.defect-detail-drawer__attachment-icon[data-tone='image'] {
+  border-color: #ddd6fe;
+  background: var(--app-purple-soft);
+  color: var(--app-purple);
+}
+
+.defect-detail-drawer__attachment-icon[data-tone='zip'] {
+  border-color: #fed7aa;
+  background: var(--app-warning-soft);
+  color: var(--app-warning);
+}
+
+.defect-detail-drawer__attachment-main {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+.defect-detail-drawer__attachment-main strong {
+  overflow: hidden;
+  color: var(--app-text-primary);
+  font-size: var(--app-font-size-sm);
+  font-weight: 600;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.defect-detail-drawer__attachment-main small {
+  color: var(--app-text-muted);
+  font-size: var(--app-font-size-xs);
+  line-height: var(--app-line-height-xs);
+}
+
+.defect-detail-drawer__timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.defect-detail-drawer__timeline-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  gap: var(--app-space-3);
+  padding: 0 0 var(--app-space-4);
+}
+
+.defect-detail-drawer__timeline-item:not(:last-child)::before {
+  position: absolute;
+  top: 16px;
+  bottom: 0;
+  left: 5px;
+  width: 1px;
+  background: var(--app-border);
+  content: '';
+}
+
+.defect-detail-drawer__timeline-dot {
+  position: relative;
+  z-index: 1;
+  width: 11px;
+  height: 11px;
+  margin-top: 4px;
+  border: 2px solid var(--app-primary);
+  border-radius: 999px;
+  background: var(--app-bg-panel);
+}
+
+.defect-detail-drawer__timeline-main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--app-space-1);
+}
+
+.defect-detail-drawer__timeline-main strong {
+  color: var(--app-text-primary);
+  font-size: var(--app-font-size-sm);
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.defect-detail-drawer__timeline-main small,
+.defect-detail-drawer__timeline-item time {
+  color: var(--app-text-muted);
+  font-size: var(--app-font-size-xs);
+  line-height: var(--app-line-height-xs);
+}
+
+.defect-detail-drawer__timeline-item time {
+  white-space: nowrap;
 }
 
 .defect-detail-drawer__muted {
@@ -656,6 +915,11 @@ watch(
   }
 
   .defect-detail-drawer__meta {
+    grid-template-columns: 1fr;
+  }
+
+  .defect-detail-drawer__meta-row,
+  .defect-detail-drawer__timeline-item {
     grid-template-columns: 1fr;
   }
 }

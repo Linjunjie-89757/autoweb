@@ -60,6 +60,8 @@ const caseOptionsLoading = ref(false)
 const caseOptionsError = ref('')
 let userOptionsLoaded = false
 let caseOptionsRequestSeq = 0
+let loadedCaseOptionsWorkspaceCode = ''
+let loadingCaseOptionsWorkspaceCode = ''
 
 const activeWorkspaceCode = computed(() => form.workspaceCode || props.defaultWorkspaceCode || 'ALL')
 
@@ -90,7 +92,15 @@ async function loadUserOptions() {
 }
 
 async function loadCaseOptions(workspaceCode: string) {
+  if (
+    loadedCaseOptionsWorkspaceCode === workspaceCode ||
+    (caseOptionsLoading.value && loadingCaseOptionsWorkspaceCode === workspaceCode)
+  ) {
+    return
+  }
+
   const requestSeq = ++caseOptionsRequestSeq
+  loadingCaseOptionsWorkspaceCode = workspaceCode
   caseOptionsLoading.value = true
   caseOptionsError.value = ''
   try {
@@ -100,6 +110,7 @@ async function loadCaseOptions(workspaceCode: string) {
     })
     if (requestSeq === caseOptionsRequestSeq) {
       caseOptions.value = Array.isArray(page.items) ? page.items : []
+      loadedCaseOptionsWorkspaceCode = workspaceCode
     }
   } catch (error) {
     if (requestSeq === caseOptionsRequestSeq) {
@@ -109,6 +120,7 @@ async function loadCaseOptions(workspaceCode: string) {
   } finally {
     if (requestSeq === caseOptionsRequestSeq) {
       caseOptionsLoading.value = false
+      loadingCaseOptionsWorkspaceCode = ''
     }
   }
 }

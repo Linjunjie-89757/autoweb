@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 
 import { workspaceApi, type WorkspaceMemberItem } from '@/entities/workspace'
-import { getRequestErrorMessage } from '@/shared/api/error'
 
 const props = withDefaults(
   defineProps<{
@@ -30,12 +29,12 @@ const errorMessage = ref('')
 let requestSeq = 0
 
 const normalizedWorkspaceCode = computed(() => props.workspaceCode || '')
-const hasConcreteWorkspace = computed(() => Boolean(normalizedWorkspaceCode.value && normalizedWorkspaceCode.value !== 'ALL'))
+const hasWorkspace = computed(() => Boolean(normalizedWorkspaceCode.value))
 const selectedMember = computed(() => members.value.find(member => String(member.userId) === props.modelValue) ?? null)
 const selectedLabel = computed(() => selectedMember.value ? getMemberLabel(selectedMember.value) : props.fallbackLabel || '')
-const selectDisabled = computed(() => props.disabled || !hasConcreteWorkspace.value)
+const selectDisabled = computed(() => props.disabled || !hasWorkspace.value)
 const selectPlaceholder = computed(() => {
-  if (!hasConcreteWorkspace.value) {
+  if (!hasWorkspace.value) {
     return '请先选择工作空间'
   }
   return props.placeholder
@@ -45,9 +44,32 @@ function getMemberLabel(member: WorkspaceMemberItem) {
   return member.displayName || member.username || `用户 ${member.userId}`
 }
 
+function dedupeMembers(items: WorkspaceMemberItem[]) {
+  const memberMap = new Map<number, WorkspaceMemberItem>()
+  items.forEach((member) => {
+    if (!memberMap.has(member.userId)) {
+      memberMap.set(member.userId, member)
+    }
+  })
+  return Array.from(memberMap.values())
+}
+
+async function loadAllWorkspaceMembers() {
+  const workspaces = await workspaceApi.getSwitchableWorkspaces()
+  const businessWorkspaces = workspaces.filter((workspace) => (
+    workspace.workspaceCode
+    && workspace.workspaceCode !== 'ALL'
+    && !workspace.allScope
+  ))
+  const memberGroups = await Promise.allSettled(
+    businessWorkspaces.map((workspace) => workspaceApi.getWorkspaceMembers(workspace.workspaceCode)),
+  )
+  return dedupeMembers(memberGroups.flatMap((group) => (group.status === 'fulfilled' ? group.value : [])))
+}
+
 async function loadMembers(workspaceCode: string) {
   const currentSeq = ++requestSeq
-  if (!workspaceCode || workspaceCode === 'ALL') {
+  if (!workspaceCode) {
     members.value = []
     errorMessage.value = ''
     return
@@ -56,14 +78,16 @@ async function loadMembers(workspaceCode: string) {
   loading.value = true
   errorMessage.value = ''
   try {
-    const nextMembers = await workspaceApi.getWorkspaceMembers(workspaceCode)
+    const nextMembers = workspaceCode === 'ALL'
+      ? await loadAllWorkspaceMembers()
+      : await workspaceApi.getWorkspaceMembers(workspaceCode)
     if (currentSeq === requestSeq) {
       members.value = nextMembers
     }
   } catch (error) {
     if (currentSeq === requestSeq) {
       members.value = []
-      errorMessage.value = getRequestErrorMessage(error)
+      errorMessage.value = '处理人加载失败'
     }
   } finally {
     if (currentSeq === requestSeq) {

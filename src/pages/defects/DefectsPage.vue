@@ -1,14 +1,23 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { defectApi, type DefectClientFilter, type DefectStatistics } from '@/entities/defect'
-import { workspaceApi, type WorkspaceItem, type WorkspaceMemberItem } from '@/entities/workspace'
+import {
+  useWorkspaceContext,
+  workspaceApi,
+  type WorkspaceItem,
+  type WorkspaceMemberItem,
+} from '@/entities/workspace'
 import { getRequestErrorMessage } from '@/shared/api/error'
 import AppPage from '@/shared/ui/app-page/AppPage.vue'
 import { DefectFilterPanel } from '@/widgets/defect-filter-panel'
 import { DefectListPanel } from '@/widgets/defect-list-panel'
 import { DefectSummaryPanel } from '@/widgets/defect-summary-panel'
 
+const route = useRoute()
+const router = useRouter()
+const { selectedWorkspaceCode, setSelectedWorkspaceCode } = useWorkspaceContext()
 const workspaceCode = ref('ALL')
 const workspaceSelectorCode = ref('ALL')
 const workspaces = ref<WorkspaceItem[]>([])
@@ -53,8 +62,25 @@ const workspaceFilterOptions = computed(() => workspaces.value
   })))
 
 const showWorkspaceFilter = computed(() => workspaceCode.value === 'ALL')
+const businessWorkspaces = computed(() => workspaces.value.filter((item) => (
+  item.workspaceCode
+  && item.workspaceCode !== 'ALL'
+  && !item.allScope
+)))
 
 function resolveDefaultWorkspaceCode(items: WorkspaceItem[]) {
+  const routeWorkspace = Array.isArray(route.query.workspace) ? route.query.workspace[0] : route.query.workspace
+  if (routeWorkspace && (routeWorkspace === 'ALL' || items.some(item => item.workspaceCode === routeWorkspace))) {
+    return routeWorkspace
+  }
+
+  if (
+    selectedWorkspaceCode.value
+    && (selectedWorkspaceCode.value === 'ALL' || items.some(item => item.workspaceCode === selectedWorkspaceCode.value))
+  ) {
+    return selectedWorkspaceCode.value
+  }
+
   const selected = items.find((item) => item.current || item.isCurrent || item.default || item.isDefault)
   return selected?.workspaceCode || items[0]?.workspaceCode || 'ALL'
 }
@@ -68,6 +94,7 @@ async function loadWorkspaces() {
     workspaces.value = items
     workspaceCode.value = resolveDefaultWorkspaceCode(items)
     workspaceSelectorCode.value = workspaceCode.value
+    setSelectedWorkspaceCode(workspaceCode.value)
   } catch (error) {
     workspaceCode.value = 'ALL'
     workspaceSelectorCode.value = 'ALL'
@@ -87,7 +114,7 @@ async function loadStatistics() {
 }
 
 async function loadWorkspaceMembers() {
-  if (!workspaceCode.value || workspaceCode.value === 'ALL') {
+  if (!workspaceCode.value) {
     workspaceMembers.value = []
     filter.value = {
       ...filter.value,
@@ -97,17 +124,48 @@ async function loadWorkspaceMembers() {
   }
 
   try {
+    if (workspaceCode.value === 'ALL') {
+      const memberGroups = await Promise.allSettled(
+        businessWorkspaces.value.map((workspace) => workspaceApi.getWorkspaceMembers(workspace.workspaceCode)),
+      )
+      const memberMap = new Map<number, WorkspaceMemberItem>()
+      memberGroups.forEach((group) => {
+        if (group.status !== 'fulfilled') {
+          return
+        }
+        group.value.forEach((member) => {
+          if (!memberMap.has(member.userId)) {
+            memberMap.set(member.userId, member)
+          }
+        })
+      })
+      workspaceMembers.value = Array.from(memberMap.values())
+      return
+    }
+
     workspaceMembers.value = await workspaceApi.getWorkspaceMembers(workspaceCode.value)
   } catch {
     workspaceMembers.value = []
   }
 }
 
-function handleWorkspaceChange(value: string) {
+async function handleWorkspaceChange(value: string) {
   workspaceCode.value = value
+  workspaceSelectorCode.value = value
+  setSelectedWorkspaceCode(value)
   filter.value = {
     ...filter.value,
     assigneeId: '',
+  }
+  if (route.query.workspace !== value) {
+    await router.replace({
+      path: route.path,
+      query: {
+        ...route.query,
+        workspace: value,
+      },
+      hash: route.hash,
+    })
   }
   void loadWorkspaceMembers()
   void loadStatistics()
@@ -141,6 +199,33 @@ onMounted(() => {
     await Promise.all([loadWorkspaceMembers(), loadStatistics()])
   })()
 })
+
+watch(
+  selectedWorkspaceCode,
+  (value) => {
+    if (!workspaceReady.value || !value || value === workspaceCode.value) {
+      return
+    }
+    if (value !== 'ALL' && !workspaces.value.some(item => item.workspaceCode === value)) {
+      return
+    }
+    void handleWorkspaceChange(value)
+  },
+)
+
+watch(
+  () => route.query.workspace,
+  (value) => {
+    const routeWorkspace = Array.isArray(value) ? value[0] : value
+    if (!workspaceReady.value || !routeWorkspace || routeWorkspace === workspaceCode.value) {
+      return
+    }
+    if (routeWorkspace !== 'ALL' && !workspaces.value.some(item => item.workspaceCode === routeWorkspace)) {
+      return
+    }
+    void handleWorkspaceChange(routeWorkspace)
+  },
+)
 </script>
 
 <template>
@@ -184,6 +269,7 @@ onMounted(() => {
           v-model="filter"
           :workspace-code="workspaceCode"
           :workspace-options="workspaceFilterOptions"
+          :assignee-options="assigneeOptions"
           :show-create-button="workspaceReady"
           :show-workspace-filter="showWorkspaceFilter"
           embedded

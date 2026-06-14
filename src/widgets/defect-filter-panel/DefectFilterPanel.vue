@@ -9,7 +9,6 @@ import {
   type DefectClientFilter,
 } from '@/entities/defect'
 import AppButton from '@/shared/ui/app-button/AppButton.vue'
-import AppUserSelect from '@/shared/ui/app-user-select/AppUserSelect.vue'
 
 const props = defineProps<{
   modelValue: DefectClientFilter
@@ -17,6 +16,7 @@ const props = defineProps<{
   embedded?: boolean
   workspaceCode?: string
   workspaceOptions?: Array<{ label: string; value: string }>
+  assigneeOptions?: Array<{ label: string; value: string }>
   showWorkspaceFilter?: boolean
 }>()
 
@@ -105,13 +105,19 @@ function resetFilters() {
       <el-select v-model="form.severity" class="defect-filter-panel__control" clearable placeholder="&#20005;&#37325;&#32423;&#21035;">
         <el-option v-for="item in defectSeverityOptions" :key="item.value" :label="item.label" :value="item.value" />
       </el-select>
-      <AppUserSelect
+      <el-select
         v-model="form.assigneeId"
         class="defect-filter-panel__control"
-        :workspace-code="workspaceCode"
         clearable
         placeholder="&#22788;&#29702;&#20154;"
-      />
+      >
+        <el-option
+          v-for="item in assigneeOptions ?? []"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value"
+        />
+      </el-select>
       <el-select
         v-if="showWorkspaceFilter"
         v-model="form.workspaceCode"

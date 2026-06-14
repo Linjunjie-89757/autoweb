@@ -11,26 +11,27 @@ import {
   User,
   Warning,
 } from '@element-plus/icons-vue'
+import { ChevronDown, Layers } from '@lucide/vue'
 import { ElMessage } from 'element-plus'
-import { computed } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { useSession } from '@/entities/session'
+import { useWorkspaceContext, workspaceApi, type WorkspaceItem } from '@/entities/workspace'
 import { useLogout } from '@/features/auth-logout'
+import { getRequestErrorMessage } from '@/shared/api/error'
 
 const router = useRouter()
 const route = useRoute()
 const { currentUser } = useSession()
 const { loading: logoutLoading, errorMessage: logoutErrorMessage, logout } = useLogout()
+const { selectedWorkspaceCode, setSelectedWorkspaceCode } = useWorkspaceContext()
+const switchableWorkspaces = ref<WorkspaceItem[]>([])
+const workspaceLoading = ref(false)
+const workspaceErrorMessage = ref('')
 
 const headerTitle = computed(() => {
   return typeof route.meta.title === 'string' && route.meta.title ? route.meta.title : '前端 2.0 重建'
-})
-
-const headerDescription = computed(() => {
-  return typeof route.meta.description === 'string' && route.meta.description
-    ? route.meta.description
-    : 'Vue3 · TypeScript · Element Plus'
 })
 
 const userDisplayName = computed(() => {
@@ -39,6 +40,27 @@ const userDisplayName = computed(() => {
 })
 
 const userRoleText = computed(() => currentUser.value?.roleCode || '已登录')
+
+const workspaceOptions = computed(() => {
+  const options = switchableWorkspaces.value.map((item) => ({
+    label: item.workspaceName || item.workspaceCode,
+    value: item.workspaceCode,
+  }))
+
+  if (!options.some(item => item.value === 'ALL')) {
+    options.unshift({ label: '全部空间', value: 'ALL' })
+  }
+
+  return options
+})
+
+const selectedWorkspaceName = computed(() => {
+  return workspaceOptions.value.find(item => item.value === selectedWorkspaceCode.value)?.label || '全部空间'
+})
+
+const navigationTargetQuery = computed(() => ({
+  workspace: selectedWorkspaceCode.value,
+}))
 
 const navigationItems = [
   { path: '/', label: '工作台', icon: Grid },
@@ -55,6 +77,56 @@ function isNavigationActive(path: string) {
   return route.path === path
 }
 
+function resolveInitialWorkspaceCode(items: WorkspaceItem[]) {
+  const routeWorkspace = Array.isArray(route.query.workspace) ? route.query.workspace[0] : route.query.workspace
+  if (routeWorkspace && (routeWorkspace === 'ALL' || items.some(item => item.workspaceCode === routeWorkspace))) {
+    return routeWorkspace
+  }
+
+  if (
+    selectedWorkspaceCode.value
+    && (selectedWorkspaceCode.value === 'ALL' || items.some(item => item.workspaceCode === selectedWorkspaceCode.value))
+  ) {
+    return selectedWorkspaceCode.value
+  }
+
+  const selected = items.find((item) => item.current || item.isCurrent || item.default || item.isDefault)
+  return selected?.workspaceCode || items[0]?.workspaceCode || 'ALL'
+}
+
+async function loadSwitchableWorkspaces() {
+  workspaceLoading.value = true
+  workspaceErrorMessage.value = ''
+  try {
+    const items = await workspaceApi.getSwitchableWorkspaces()
+    switchableWorkspaces.value = items
+    setSelectedWorkspaceCode(resolveInitialWorkspaceCode(items))
+  } catch (error) {
+    workspaceErrorMessage.value = getRequestErrorMessage(error)
+    switchableWorkspaces.value = []
+  } finally {
+    workspaceLoading.value = false
+  }
+}
+
+async function handleWorkspaceChange(value: string) {
+  if (!value) {
+    return
+  }
+
+  setSelectedWorkspaceCode(value)
+  if (route.path.startsWith('/bugs')) {
+    await router.replace({
+      path: route.path,
+      query: {
+        ...route.query,
+        workspace: value,
+      },
+      hash: route.hash,
+    })
+  }
+}
+
 async function handleLogout() {
   if (logoutLoading.value) {
     return
@@ -67,6 +139,20 @@ async function handleLogout() {
     ElMessage.error(logoutErrorMessage.value || '退出登录失败，请稍后重试')
   }
 }
+
+watch(
+  () => route.query.workspace,
+  (value) => {
+    const routeWorkspace = Array.isArray(value) ? value[0] : value
+    if (routeWorkspace && routeWorkspace !== selectedWorkspaceCode.value) {
+      setSelectedWorkspaceCode(routeWorkspace)
+    }
+  },
+)
+
+onMounted(() => {
+  void loadSwitchableWorkspaces()
+})
 </script>
 
 <template>
@@ -83,7 +169,7 @@ async function handleLogout() {
           :key="item.path"
           class="app-layout__nav-item"
           :class="{ 'is-active': isNavigationActive(item.path) }"
-          :to="item.path"
+          :to="{ path: item.path, query: navigationTargetQuery }"
         >
           <el-icon class="app-layout__nav-icon">
             <component :is="item.icon" />
@@ -97,9 +183,33 @@ async function handleLogout() {
       <header class="app-layout__header">
         <div class="app-layout__header-copy">
           <div class="app-layout__header-title">{{ headerTitle }}</div>
-          <div class="app-layout__header-meta">{{ headerDescription }}</div>
+          <span class="app-layout__header-divider" />
+          <el-dropdown
+            trigger="click"
+            popper-class="workspace-dropdown-menu"
+            :disabled="workspaceOptions.length === 0 || workspaceLoading"
+            @command="handleWorkspaceChange"
+          >
+            <button class="app-layout__workspace-button" type="button" :aria-busy="workspaceLoading">
+              <Layers class="app-layout__workspace-icon" />
+              <span class="app-layout__workspace-name">{{ selectedWorkspaceName }}</span>
+              <ChevronDown class="app-layout__workspace-caret" />
+            </button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item
+                  v-for="item in workspaceOptions"
+                  :key="item.value"
+                  :command="item.value"
+                >
+                  {{ item.label }}
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
 
+        <div class="app-layout__header-actions">
         <el-dropdown trigger="click" @command="handleLogout">
           <button
             class="app-layout__user"
@@ -128,6 +238,7 @@ async function handleLogout() {
             </el-dropdown-menu>
           </template>
         </el-dropdown>
+        </div>
       </header>
 
       <main class="app-layout__main">
@@ -234,7 +345,81 @@ async function handleLogout() {
 }
 
 .app-layout__header-copy {
+  display: inline-flex;
   min-width: 0;
+  align-items: center;
+  gap: var(--app-space-3);
+}
+
+.app-layout__header-actions {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--app-space-3);
+  min-width: 0;
+}
+
+.app-layout__header-divider {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 20px;
+  background: var(--app-border);
+}
+
+.app-layout__workspace-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-bg-muted);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--app-font-size-sm);
+  line-height: 20px;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.app-layout__workspace-button:hover {
+  background: var(--app-bg-panel);
+  border-color: var(--app-primary);
+}
+
+.app-layout__workspace-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.app-layout__workspace-button:focus-visible {
+  outline: 0;
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 1px var(--app-primary) inset;
+}
+
+.app-layout__workspace-icon {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--app-primary);
+}
+
+.app-layout__workspace-name {
+  overflow: hidden;
+  min-width: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-layout__workspace-caret {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--app-text-muted);
 }
 
 .app-layout__header-title {
@@ -242,14 +427,6 @@ async function handleLogout() {
   font-size: var(--app-font-size-lg);
   font-weight: 700;
   line-height: var(--app-line-height-lg);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.app-layout__header-meta {
-  overflow: hidden;
-  color: var(--app-text-muted);
-  font-size: var(--app-font-size-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -374,18 +551,28 @@ async function handleLogout() {
 
   .app-layout__header-copy {
     flex: 1 1 auto;
+    flex-wrap: wrap;
+    gap: var(--app-space-2);
   }
 
   .app-layout__header-title {
     max-width: 100%;
   }
 
-  .app-layout__header-meta {
-    max-width: 100%;
-  }
-
   .app-layout__user {
     max-width: 156px;
+  }
+
+  .app-layout__header-actions {
+    gap: var(--app-space-2);
+  }
+
+  .app-layout__header-divider {
+    display: none;
+  }
+
+  .app-layout__workspace-button {
+    max-width: 132px;
   }
 
   .app-layout__user-name,

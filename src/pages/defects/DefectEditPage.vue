@@ -6,6 +6,8 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 
 import { caseApi, type CaseSummaryItem } from '@/entities/case'
 import {
+  DefectAttachmentPanel,
+  type DefectAttachmentPanelItem,
   defectApi,
   defectPriorityOptions,
   defectSeverityOptions,
@@ -18,6 +20,7 @@ import DefectRichTextEditor from '@/features/defect-create-edit/DefectRichTextEd
 import { getRequestErrorMessage } from '@/shared/api/error'
 import AppButton from '@/shared/ui/app-button/AppButton.vue'
 import AppLoadingState from '@/shared/ui/app-loading-state/AppLoadingState.vue'
+import AppTagInput from '@/shared/ui/app-tag-input/AppTagInput.vue'
 import {
   buildSaveDefectPayload,
   createDefaultDefectForm,
@@ -71,13 +74,7 @@ const routeWorkspaceCode = computed(() => {
   return workspaceCode || 'ALL'
 })
 
-const workspaceName = computed(() => {
-  const matched = workspaces.value.find(item => item.workspaceCode === form.workspaceCode)
-  return matched?.workspaceName || detail.value?.workspaceName || form.workspaceCode || '-'
-})
-
 const pageTitle = computed(() => (isCreateMode.value ? '新增缺陷' : '编辑缺陷'))
-const pageMeta = computed(() => (isCreateMode.value ? workspaceName.value : detail.value?.bugNo || '-'))
 const primaryActionText = computed(() => (isCreateMode.value ? '创建' : '保存'))
 const canSubmit = computed(() => !loading.value && !errorMessage.value)
 const pendingImageFiles = computed(() => pendingFiles.value.filter(item => item.previewUrl))
@@ -86,6 +83,25 @@ const attachmentPreviewUrls = computed(() => [
   ...existingImageAttachments.value.map(item => getAttachmentImageUrl(item)),
   ...pendingImageFiles.value.map(item => item.previewUrl || ''),
 ].filter(Boolean))
+const attachmentPanelItems = computed<DefectAttachmentPanelItem[]>(() => [
+  ...existingAttachments.value.map(item => ({
+    id: item.id,
+    fileName: item.fileName,
+    fileSize: item.fileSize,
+    uploadedByName: item.uploadedByName,
+    createdAt: item.createdAt,
+    contentType: item.contentType,
+    imageUrl: isImageAttachment(item) ? getAttachmentImageUrl(item) : undefined,
+  })),
+  ...pendingFiles.value.map(item => ({
+    id: item.id,
+    fileName: item.file.name,
+    fileSize: item.file.size,
+    contentType: item.file.type,
+    imageUrl: item.previewUrl || undefined,
+    pending: true,
+  })),
+])
 const isDirty = computed(() => buildDirtySnapshot() !== initialSnapshot.value)
 
 function getUserLabel(user: UserItem) {
@@ -135,19 +151,6 @@ async function loadAttachmentImageUrls(nextDetail: DefectDetail | null) {
     }
   }
   attachmentImageUrls.value = nextUrls
-}
-
-function formatFileSize(size: number | null | undefined) {
-  if (!size) {
-    return '-'
-  }
-  if (size < 1024) {
-    return `${size} B`
-  }
-  if (size < 1024 * 1024) {
-    return `${(size / 1024).toFixed(1)} KB`
-  }
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
 }
 
 function buildDirtySnapshot() {
@@ -311,6 +314,27 @@ async function deleteAttachment(item: DefectAttachment) {
   }
 }
 
+function handleAttachmentPanelDownload(item: DefectAttachmentPanelItem) {
+  if (item.pending) {
+    return
+  }
+  const matched = existingAttachments.value.find(attachment => attachment.id === item.id)
+  if (matched) {
+    void downloadAttachment(matched)
+  }
+}
+
+function handleAttachmentPanelRemove(item: DefectAttachmentPanelItem) {
+  if (item.pending) {
+    removePendingFile(String(item.id))
+    return
+  }
+  const matched = existingAttachments.value.find(attachment => attachment.id === item.id)
+  if (matched) {
+    void deleteAttachment(matched)
+  }
+}
+
 function resolveInitialWorkspaceCode(items: WorkspaceItem[]) {
   const concreteWorkspaces = items.filter(item => item.workspaceCode && item.workspaceCode !== 'ALL' && !item.allScope)
   if (routeWorkspaceCode.value !== 'ALL' && concreteWorkspaces.some(item => item.workspaceCode === routeWorkspaceCode.value)) {
@@ -456,11 +480,16 @@ async function goBack() {
   if (!await confirmLeave()) {
     return
   }
+  suppressLeaveGuard.value = true
   const workspaceCode = detail.value?.workspaceCode || form.workspaceCode || routeWorkspaceCode.value
-  void router.push({
-    path: '/bugs',
-    query: workspaceCode ? { workspace: workspaceCode } : undefined,
-  })
+  try {
+    await router.push({
+      path: '/bugs',
+      query: workspaceCode ? { workspace: workspaceCode } : undefined,
+    })
+  } catch {
+    suppressLeaveGuard.value = false
+  }
 }
 
 async function submit(keepCreating = false) {
@@ -510,7 +539,7 @@ async function submit(keepCreating = false) {
     }
     markClean()
     suppressLeaveGuard.value = true
-    goBack()
+    await goBack()
   } catch (requestError) {
     formError.value = getRequestErrorMessage(requestError)
   } finally {
@@ -564,10 +593,6 @@ watch(
         <div class="defect-edit-page__titlebar">
           <div>
             <h1>{{ pageTitle }}</h1>
-            <p>
-              <span>{{ pageMeta }}</span>
-              <span>{{ workspaceName }}</span>
-            </p>
           </div>
         </div>
       </header>
@@ -581,10 +606,16 @@ watch(
 
         <div v-else class="defect-edit-page__form-surface">
           <section class="defect-edit-page__main">
-            <div class="defect-edit-page__section-header">
-              <h2>主要信息</h2>
-              <span>填写缺陷标题和现象描述，保存时沿用当前后端字段契约。</span>
-            </div>
+            <label class="defect-edit-page__field">
+              <span class="is-required">缺陷标题</span>
+              <el-input
+                v-model="form.title"
+                maxlength="120"
+                show-word-limit
+                placeholder="请输入缺陷标题"
+                :disabled="saving"
+              />
+            </label>
 
             <label class="defect-edit-page__field">
               <span class="is-required">缺陷描述</span>
@@ -613,63 +644,20 @@ watch(
                 <AppButton size="small" :disabled="saving" @click="openUploadPicker">上传附件</AppButton>
               </div>
 
-              <div v-if="existingAttachments.length || pendingFiles.length" class="defect-edit-page__attachment-list">
-                <article v-for="item in existingAttachments" :key="`existing-${item.id}`" class="defect-edit-page__attachment-item">
-                  <el-image
-                    v-if="isImageAttachment(item)"
-                    class="defect-edit-page__attachment-thumb"
-                    :src="getAttachmentImageUrl(item)"
-                    :preview-src-list="attachmentPreviewUrls"
-                    :initial-index="attachmentPreviewUrls.findIndex(url => url === getAttachmentImageUrl(item))"
-                    fit="cover"
-                    preview-teleported
-                  />
-                  <div v-else class="defect-edit-page__attachment-file">{{ item.fileName.slice(0, 1).toUpperCase() }}</div>
-                  <div class="defect-edit-page__attachment-meta">
-                    <strong>{{ item.fileName }}</strong>
-                    <span>{{ formatFileSize(item.fileSize) }} · {{ item.uploadedByName || '已上传' }}</span>
-                  </div>
-                  <div class="defect-edit-page__attachment-actions">
-                    <el-button text type="primary" @click="downloadAttachment(item)">下载</el-button>
-                    <el-button text type="danger" :loading="deletingAttachmentIds.has(item.id)" @click="deleteAttachment(item)">删除</el-button>
-                  </div>
-                </article>
-
-                <article v-for="item in pendingFiles" :key="item.id" class="defect-edit-page__attachment-item is-pending">
-                  <el-image
-                    v-if="item.previewUrl"
-                    class="defect-edit-page__attachment-thumb"
-                    :src="item.previewUrl"
-                    :preview-src-list="attachmentPreviewUrls"
-                    :initial-index="attachmentPreviewUrls.findIndex(url => url === item.previewUrl)"
-                    fit="cover"
-                    preview-teleported
-                  />
-                  <div v-else class="defect-edit-page__attachment-file">{{ item.file.name.slice(0, 1).toUpperCase() }}</div>
-                  <div class="defect-edit-page__attachment-meta">
-                    <strong>{{ item.file.name }}</strong>
-                    <span>{{ formatFileSize(item.file.size) }} · 待上传</span>
-                  </div>
-                  <div class="defect-edit-page__attachment-actions">
-                    <el-button text type="danger" @click="removePendingFile(item.id)">删除</el-button>
-                  </div>
-                </article>
-              </div>
-
-              <button v-else type="button" class="defect-edit-page__evidence-empty" @click="openUploadPicker">
-                <span>+</span>
-                <strong>添加附件或截图</strong>
-              </button>
+              <DefectAttachmentPanel
+                :items="attachmentPanelItems"
+                :preview-urls="attachmentPreviewUrls"
+                :removing-id="Array.from(deletingAttachmentIds)[0] ?? null"
+                empty-title="添加附件或截图"
+                empty-description="当前还没有待上传附件，点击上方按钮或在此区域粘贴、拖拽文件。"
+                @download="handleAttachmentPanelDownload"
+                @remove="handleAttachmentPanelRemove"
+              />
               <input ref="uploadInput" class="defect-edit-page__hidden-file" type="file" multiple @change="handleUploadChange">
             </section>
           </section>
 
           <aside class="defect-edit-page__side">
-            <div class="defect-edit-page__section-header">
-              <h2>流转字段</h2>
-              <span>保持当前缺陷保存契约，只调整页面式编辑体验。</span>
-            </div>
-
             <label class="defect-edit-page__field">
               <span class="is-required">工作空间</span>
               <el-select
@@ -764,14 +752,8 @@ watch(
 
             <label class="defect-edit-page__field">
               <span>标签</span>
-              <el-select
+              <AppTagInput
                 v-model="form.tags"
-                class="defect-edit-page__select defect-edit-page__tag-select"
-                multiple
-                filterable
-                allow-create
-                default-first-option
-                :reserve-keyword="false"
                 placeholder="输入内容后回车可直接添加标签"
               />
             </label>
@@ -801,8 +783,7 @@ watch(
 .defect-edit-page {
   display: flex;
   min-height: 0;
-  height: 100%;
-  padding: var(--app-space-6);
+  height: calc(100dvh - 64px - var(--app-space-6) * 2);
   background: var(--app-bg-page);
 }
 
@@ -877,7 +858,7 @@ watch(
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--app-border-soft);
   border-radius: var(--app-radius-lg);
   background: var(--app-bg-panel);
@@ -958,10 +939,6 @@ watch(
   width: 100%;
 }
 
-.defect-edit-page__tag-select :deep(.el-select__wrapper) {
-  min-height: 36px;
-}
-
 .defect-edit-page__evidence {
   display: flex;
   min-width: 0;
@@ -1001,108 +978,6 @@ watch(
   color: var(--app-text-muted);
   font-size: var(--app-font-size-xs);
   line-height: var(--app-line-height-xs);
-}
-
-.defect-edit-page__attachment-list {
-  display: grid;
-  gap: 8px;
-}
-
-.defect-edit-page__attachment-item {
-  display: grid;
-  grid-template-columns: 48px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  padding: 8px;
-  border: 1px solid var(--app-border-soft);
-  border-radius: var(--app-radius-md);
-  background: var(--app-bg-subtle);
-}
-
-.defect-edit-page__attachment-item.is-pending {
-  border-style: dashed;
-}
-
-.defect-edit-page__attachment-thumb,
-.defect-edit-page__attachment-file {
-  display: flex;
-  width: 48px;
-  height: 48px;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
-  background: var(--app-bg-panel);
-  color: var(--app-text-muted);
-  font-weight: 700;
-}
-
-.defect-edit-page__attachment-thumb {
-  padding: 0;
-  cursor: pointer;
-}
-
-.defect-edit-page__attachment-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.defect-edit-page__attachment-meta {
-  display: grid;
-  min-width: 0;
-  gap: 2px;
-}
-
-.defect-edit-page__attachment-meta strong,
-.defect-edit-page__attachment-meta span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.defect-edit-page__attachment-meta strong {
-  color: var(--app-text-primary);
-  font-size: var(--app-font-size-sm);
-  font-weight: 600;
-}
-
-.defect-edit-page__attachment-meta span {
-  color: var(--app-text-muted);
-  font-size: var(--app-font-size-xs);
-}
-
-.defect-edit-page__attachment-actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-
-.defect-edit-page__attachment-actions :deep(.el-button) {
-  height: 28px;
-  padding: 0;
-}
-
-.defect-edit-page__evidence-empty {
-  display: grid;
-  place-items: center;
-  min-height: 112px;
-  border: 1px dashed var(--app-border-strong);
-  border-radius: var(--app-radius-md);
-  background: var(--app-bg-subtle);
-  color: var(--app-text-muted);
-  cursor: pointer;
-}
-
-.defect-edit-page__evidence-empty span {
-  font-size: 28px;
-  line-height: 1;
-}
-
-.defect-edit-page__evidence-empty strong {
-  font-size: var(--app-font-size-sm);
 }
 
 .defect-edit-page__hidden-file {
@@ -1184,6 +1059,7 @@ watch(
 }
 
 .defect-edit-page__footer {
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: flex-end;

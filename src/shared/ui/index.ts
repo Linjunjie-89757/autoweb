@@ -9,3 +9,4 @@ export { default as AppProviderBadge } from './app-provider-badge/AppProviderBad
 export { default as AppSection } from './app-section/AppSection.vue'
 export { default as AppStatusBadge } from './app-status-badge/AppStatusBadge.vue'
 export { default as AppTable } from './app-table/AppTable.vue'
+export { default as AppTagInput } from './app-tag-input/AppTagInput.vue'

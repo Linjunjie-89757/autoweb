@@ -1,9 +1,11 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeftBold, ArrowRightBold, Close, Delete, DocumentCopy, Edit, Link, MoreFilled, Promotion } from '@element-plus/icons-vue'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import {
+  DefectAttachmentPanel,
+  type DefectAttachmentPanelItem,
   DefectPriorityBadge,
   DefectSeverityBadge,
   DefectStatusBadge,
@@ -99,10 +101,18 @@ const activityCount = computed(() => {
 
 const attachmentCount = computed(() => getAttachments(detail.value).length)
 const imageAttachments = computed(() => getAttachments(detail.value).filter(isImageAttachment))
-const fileAttachments = computed(() => getAttachments(detail.value).filter(attachment => !isImageAttachment(attachment)))
 const previewImageUrls = computed(() => imageAttachments.value
   .map(attachment => attachmentImageUrls.value[attachment.id])
   .filter(Boolean))
+const attachmentPanelItems = computed<DefectAttachmentPanelItem[]>(() => getAttachments(detail.value).map(attachment => ({
+  id: attachment.id,
+  fileName: attachment.fileName,
+  fileSize: attachment.fileSize,
+  uploadedByName: attachment.uploadedByName,
+  createdAt: attachment.createdAt,
+  contentType: attachment.contentType,
+  imageUrl: isImageAttachment(attachment) ? getAttachmentImageUrl(attachment) : undefined,
+})))
 const caseRows = computed(() => {
   const keyword = caseKeyword.value.trim().toLowerCase()
   const rows = getCaseRows(detail.value)
@@ -227,21 +237,6 @@ function displayRichText(value: string | null | undefined) {
   return doc.body.textContent?.trim() || '-'
 }
 
-function formatFileSize(value: number | null | undefined) {
-  if (!value || value <= 0) {
-    return '-'
-  }
-
-  if (value < 1024) {
-    return `${value} B`
-  }
-  if (value < 1024 * 1024) {
-    return `${(value / 1024).toFixed(1)} KB`
-  }
-
-  return `${(value / 1024 / 1024).toFixed(1)} MB`
-}
-
 function getAttachments(value: DefectDetail | null): DefectAttachment[] {
   return Array.isArray(value?.attachments) ? value.attachments : []
 }
@@ -282,32 +277,6 @@ function getCaseRows(value: DefectDetail | null): DefectCaseSummary[] {
   }
 
   return []
-}
-
-function getAttachmentTypeLabel(attachment: DefectAttachment) {
-  const fileName = attachment.fileName || ''
-  const ext = fileName.includes('.') ? fileName.split('.').pop()?.toUpperCase() : ''
-  return ext || 'FILE'
-}
-
-function getAttachmentTypeTone(attachment: DefectAttachment) {
-  const label = getAttachmentTypeLabel(attachment)
-  if (['PNG', 'JPG', 'JPEG', 'WEBP', 'GIF', 'BMP', 'SVG'].includes(label)) {
-    return 'image'
-  }
-  if (label === 'PDF') {
-    return 'pdf'
-  }
-  if (['DOC', 'DOCX'].includes(label)) {
-    return 'doc'
-  }
-  if (['XLS', 'XLSX', 'CSV'].includes(label)) {
-    return 'xls'
-  }
-  if (['ZIP', 'RAR', '7Z'].includes(label)) {
-    return 'zip'
-  }
-  return 'neutral'
 }
 
 function isImageAttachment(attachment: DefectAttachment) {
@@ -354,11 +323,6 @@ async function loadAttachmentImageUrls(value: DefectDetail | null) {
 
 function getAttachmentImageUrl(attachment: DefectAttachment) {
   return attachmentImageUrls.value[attachment.id] || ''
-}
-
-function getAttachmentImagePreviewIndex(attachment: DefectAttachment) {
-  const url = getAttachmentImageUrl(attachment)
-  return Math.max(0, previewImageUrls.value.findIndex(item => item === url))
 }
 
 function triggerBlobDownload(blob: Blob, fileName: string) {
@@ -577,6 +541,20 @@ async function removeAttachment(attachment: DefectAttachment) {
     attachmentErrorMessage.value = getRequestErrorMessage(error)
   } finally {
     attachmentRemovingId.value = null
+  }
+}
+
+function handleAttachmentPanelDownload(item: DefectAttachmentPanelItem) {
+  const attachment = getAttachments(detail.value).find(entry => entry.id === item.id)
+  if (attachment) {
+    void downloadAttachment(attachment)
+  }
+}
+
+function handleAttachmentPanelRemove(item: DefectAttachmentPanelItem) {
+  const attachment = getAttachments(detail.value).find(entry => entry.id === item.id)
+  if (attachment) {
+    void removeAttachment(attachment)
   }
 }
 
@@ -802,101 +780,13 @@ onBeforeUnmount(() => {
                   上传附件
                 </AppButton>
               </div>
-              <div v-if="getAttachments(detail).length" class="defect-detail-drawer__attachment-surface">
-                <div v-if="imageAttachments.length" class="defect-detail-drawer__attachment-group">
-                  <div class="defect-detail-drawer__attachment-group-title">图片证据</div>
-                  <div class="defect-detail-drawer__image-grid">
-                    <div
-                      v-for="attachment in imageAttachments"
-                      :key="attachment.id"
-                      class="defect-detail-drawer__image-card"
-                    >
-                      <el-image
-                        v-if="getAttachmentImageUrl(attachment)"
-                        :src="getAttachmentImageUrl(attachment)"
-                        :preview-src-list="previewImageUrls"
-                        :initial-index="getAttachmentImagePreviewIndex(attachment)"
-                        fit="cover"
-                        class="defect-detail-drawer__image-preview"
-                      />
-                      <div v-else class="defect-detail-drawer__image-placeholder">
-                        {{ getAttachmentTypeLabel(attachment) }}
-                      </div>
-                      <div class="defect-detail-drawer__image-caption">
-                        <strong>{{ displayText(attachment.fileName) }}</strong>
-                        <small>{{ formatDefectDateTime(attachment.createdAt) }}</small>
-                      </div>
-                      <div class="defect-detail-drawer__image-actions">
-                        <el-button
-                          text
-                          type="primary"
-                          :loading="attachmentDownloadingId === attachment.id"
-                          :disabled="attachmentDownloadingId !== null && attachmentDownloadingId !== attachment.id"
-                          @click="downloadAttachment(attachment)"
-                        >
-                          下载
-                        </el-button>
-                        <el-button
-                          text
-                          type="danger"
-                          :loading="attachmentRemovingId === attachment.id"
-                          :disabled="attachmentRemovingId !== null && attachmentRemovingId !== attachment.id"
-                          @click="removeAttachment(attachment)"
-                        >
-                          删除
-                        </el-button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div v-if="fileAttachments.length" class="defect-detail-drawer__attachment-list">
-                  <div
-                    v-for="attachment in fileAttachments"
-                    :key="attachment.id"
-                    class="defect-detail-drawer__attachment-row"
-                  >
-                    <span
-                      class="defect-detail-drawer__attachment-icon"
-                      :data-tone="getAttachmentTypeTone(attachment)"
-                    >
-                      {{ getAttachmentTypeLabel(attachment) }}
-                    </span>
-                    <span class="defect-detail-drawer__attachment-main">
-                      <strong>{{ displayText(attachment.fileName) }}</strong>
-                      <small>
-                        {{ formatFileSize(attachment.fileSize) }}
-                        路 {{ displayText(attachment.uploadedByName) }}
-                        路 {{ formatDefectDateTime(attachment.createdAt) }}
-                      </small>
-                    </span>
-                    <div class="defect-detail-drawer__attachment-actions">
-                      <el-button
-                        text
-                        type="primary"
-                        :loading="attachmentDownloadingId === attachment.id"
-                        :disabled="attachmentDownloadingId !== null && attachmentDownloadingId !== attachment.id"
-                        @click="downloadAttachment(attachment)"
-                      >
-                        下载
-                      </el-button>
-                      <el-button
-                        text
-                        type="danger"
-                        :loading="attachmentRemovingId === attachment.id"
-                        :disabled="attachmentRemovingId !== null && attachmentRemovingId !== attachment.id"
-                        @click="removeAttachment(attachment)"
-                      >
-                        删除
-                      </el-button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <AppEmptyState
-                v-else
-                title="暂无附件"
-                description="当前缺陷还没有上传截图、日志或其他证据文件。"
+              <DefectAttachmentPanel
+                :items="attachmentPanelItems"
+                :preview-urls="previewImageUrls"
+                :downloading-id="attachmentDownloadingId"
+                :removing-id="attachmentRemovingId"
+                @download="handleAttachmentPanelDownload"
+                @remove="handleAttachmentPanelRemove"
               />
               <p v-if="attachmentErrorMessage" class="defect-detail-drawer__form-error">
                 {{ attachmentErrorMessage }}
@@ -1467,105 +1357,6 @@ onBeforeUnmount(() => {
   background: var(--app-bg-panel);
 }
 
-.defect-detail-drawer__attachment-surface {
-  display: grid;
-  gap: var(--app-space-3);
-  padding: var(--app-space-4);
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-lg);
-  background: var(--app-bg-subtle);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-}
-
-.defect-detail-drawer__attachment-group {
-  display: grid;
-  gap: var(--app-space-3);
-}
-
-.defect-detail-drawer__attachment-group-title {
-  color: var(--app-text-muted);
-  font-size: var(--app-font-size-xs);
-  font-weight: 600;
-  line-height: var(--app-line-height-xs);
-}
-
-.defect-detail-drawer__image-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, 170px);
-  gap: var(--app-space-3);
-}
-
-.defect-detail-drawer__image-card {
-  display: grid;
-  grid-template-rows: auto auto auto;
-  gap: var(--app-space-2);
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-md);
-  background: var(--app-bg-panel);
-}
-
-.defect-detail-drawer__image-preview,
-.defect-detail-drawer__image-placeholder {
-  width: 100%;
-  height: 132px;
-  overflow: hidden;
-  border-radius: var(--app-radius-md);
-  background: var(--app-bg-muted);
-}
-
-.defect-detail-drawer__image-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px dashed var(--app-border-strong);
-  color: var(--app-text-subtle);
-  font-size: var(--app-font-size-xs);
-  font-weight: 700;
-}
-
-.defect-detail-drawer__image-caption {
-  display: grid;
-  gap: var(--app-space-1);
-  min-width: 0;
-}
-
-.defect-detail-drawer__image-caption strong {
-  overflow: hidden;
-  color: var(--app-text-primary);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.65;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.defect-detail-drawer__image-caption small {
-  color: var(--app-text-muted);
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.defect-detail-drawer__image-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0;
-  flex-wrap: wrap;
-  min-height: 30px;
-  padding-top: 2px;
-  border-top: 1px solid var(--app-border-soft);
-}
-
-.defect-detail-drawer__image-actions :deep(.el-button) {
-  height: 28px;
-  margin-left: 0;
-  padding: 0;
-  font-size: 13px;
-  font-weight: 400;
-}
-
 .defect-detail-drawer__attachment-toolbar {
   display: flex;
   justify-content: flex-end;
@@ -1574,93 +1365,6 @@ onBeforeUnmount(() => {
 
 .defect-detail-drawer__file-input {
   display: none;
-}
-
-.defect-detail-drawer__attachment-icon {
-  display: inline-flex;
-  width: 42px;
-  height: 48px;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--app-border);
-  border-radius: var(--app-radius-sm);
-  background: var(--app-bg-subtle);
-  color: var(--app-text-muted);
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.defect-detail-drawer__attachment-icon[data-tone='pdf'] {
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: var(--app-danger);
-}
-
-.defect-detail-drawer__attachment-icon[data-tone='doc'] {
-  border-color: #bfdbfe;
-  background: var(--app-primary-soft);
-  color: var(--app-primary);
-}
-
-.defect-detail-drawer__attachment-icon[data-tone='xls'] {
-  border-color: #bbf7d0;
-  background: var(--app-success-soft);
-  color: var(--app-success);
-}
-
-.defect-detail-drawer__attachment-icon[data-tone='image'] {
-  border-color: #ddd6fe;
-  background: var(--app-purple-soft);
-  color: var(--app-purple);
-}
-
-.defect-detail-drawer__attachment-icon[data-tone='zip'] {
-  border-color: #fed7aa;
-  background: var(--app-warning-soft);
-  color: var(--app-warning);
-}
-
-.defect-detail-drawer__attachment-main {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  gap: var(--app-space-1);
-}
-
-.defect-detail-drawer__attachment-main strong {
-  overflow: hidden;
-  color: var(--app-text-primary);
-  font-size: var(--app-font-size-sm);
-  font-weight: 600;
-  line-height: 20px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.defect-detail-drawer__attachment-main small {
-  color: var(--app-text-muted);
-  font-size: var(--app-font-size-xs);
-  line-height: var(--app-line-height-xs);
-}
-
-.defect-detail-drawer__attachment-actions {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--app-space-3);
-}
-
-.defect-detail-drawer__attachment-actions :deep(.el-button) {
-  height: 28px;
-  margin-left: 0;
-  padding: 0;
-  font-size: 13px;
-  font-weight: 400;
 }
 
 .defect-detail-drawer__case-toolbar {

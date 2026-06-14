@@ -6,7 +6,7 @@ import type {
   SaveCasePayload,
 } from '@/entities/case'
 
-export type CaseDialogMode = 'create' | 'edit'
+export type CaseDialogMode = 'create' | 'edit' | 'copy'
 
 export interface CaseForm {
   workspaceCode: string
@@ -62,11 +62,11 @@ export function createDefaultCaseForm(workspaceCode = 'ALL', directoryId: number
   }
 }
 
-export function createCaseFormFromDetail(item: CaseDetail): CaseForm {
+export function createCaseFormFromDetail(item: CaseDetail, mode: CaseDialogMode = 'edit'): CaseForm {
   return {
     workspaceCode: item.workspaceCode || 'ALL',
     directoryId: item.directoryId,
-    title: item.title || '',
+    title: mode === 'copy' ? `Copy-${item.title || ''}` : item.title || '',
     caseType: item.caseType || 'FUNCTION',
     priority: item.priority || 'P1',
     sourceType: item.sourceType || 'MANUAL',
@@ -81,11 +81,12 @@ export function createCaseFormFromDetail(item: CaseDetail): CaseForm {
 export function createCaseFormFromSummary(
   item: CaseSummaryItem,
   fallbackWorkspaceCode = 'ALL',
+  mode: CaseDialogMode = 'edit',
 ): CaseForm {
   return {
     workspaceCode: item.workspaceCode || fallbackWorkspaceCode,
     directoryId: item.directoryId,
-    title: item.title || '',
+    title: mode === 'copy' ? `Copy-${item.title || ''}` : item.title || '',
     caseType: item.caseType || 'FUNCTION',
     priority: item.priority || 'P1',
     sourceType: item.sourceType || 'MANUAL',

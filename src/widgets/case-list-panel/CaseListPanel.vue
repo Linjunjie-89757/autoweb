@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { Checked, MoreFilled, Plus, RefreshRight, Setting, View } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -20,8 +20,17 @@ import {
   type CaseSummaryItem,
   type PageResponse,
 } from '@/entities/case'
+import {
+  defectApi,
+  defectPriorityOptions,
+  defectSeverityOptions,
+  type DefectPriority,
+  type DefectSeverity,
+  type SaveDefectPayload,
+} from '@/entities/defect'
 import { CaseBatchUpdateDialog, batchUpdateCases } from '@/features/case-batch-update'
 import { CaseCreateEditDialog } from '@/features/case-create-edit'
+import type { CaseDialogMode } from '@/features/case-create-edit/model'
 import { deleteCase } from '@/features/case-delete'
 import { CaseReviewDialog, reviewCase } from '@/features/case-review'
 import { runCase } from '@/features/case-run'
@@ -31,6 +40,8 @@ import AppButton from '@/shared/ui/app-button/AppButton.vue'
 import AppDialog from '@/shared/ui/app-dialog/AppDialog.vue'
 import AppEmptyState from '@/shared/ui/app-empty-state/AppEmptyState.vue'
 import AppLoadingState from '@/shared/ui/app-loading-state/AppLoadingState.vue'
+import AppTagInput from '@/shared/ui/app-tag-input/AppTagInput.vue'
+import AppUserSelect from '@/shared/ui/app-user-select/AppUserSelect.vue'
 import { CaseDetailDrawer } from '@/widgets/case-detail-drawer'
 import CaseTableSettingsDrawer from './CaseTableSettingsDrawer.vue'
 import {
@@ -68,7 +79,7 @@ const pageSize = ref(10)
 const total = ref(0)
 const totalPages = ref(0)
 const dialogVisible = ref(false)
-const dialogMode = ref<'create' | 'edit'>('create')
+const dialogMode = ref<CaseDialogMode>('create')
 const editingCase = ref<CaseSummaryItem | null>(null)
 const editingCaseDetail = ref<CaseDetail | null>(null)
 const detailLoading = ref(false)
@@ -84,6 +95,18 @@ const detailCaseId = ref<number | null>(null)
 const reviewDialogVisible = ref(false)
 const reviewingCase = ref<CaseSummaryItem | null>(null)
 const reviewingCaseId = ref<number | null>(null)
+const defectDialogVisible = ref(false)
+const defectCase = ref<CaseSummaryItem | null>(null)
+const defectSaving = ref(false)
+const defectFormError = ref('')
+const defectForm = reactive({
+  title: '',
+  description: '',
+  priority: 'P1' as DefectPriority,
+  severity: 'HIGH' as DefectSeverity,
+  assigneeId: '',
+  tags: [] as string[],
+})
 const runningCaseId = ref<number | null>(null)
 const deletingCaseId = ref<number | null>(null)
 const togglingCaseId = ref<number | null>(null)
@@ -360,6 +383,21 @@ async function openEditDialog(item: CaseSummaryItem) {
   }
 }
 
+async function openCopyDialog(item: CaseSummaryItem) {
+  dialogMode.value = 'copy'
+  editingCase.value = item
+  editingCaseDetail.value = null
+  dialogVisible.value = true
+  detailLoading.value = true
+  try {
+    editingCaseDetail.value = await caseApi.getCaseDetail(item.id, props.workspaceCode)
+  } catch (error) {
+    ElMessage.error(getRequestErrorMessage(error))
+  } finally {
+    detailLoading.value = false
+  }
+}
+
 async function saveCase(payload: Parameters<typeof caseApi.createCase>[1]) {
   if (saving.value) {
     return
@@ -370,6 +408,9 @@ async function saveCase(payload: Parameters<typeof caseApi.createCase>[1]) {
     if (dialogMode.value === 'edit' && editingCase.value) {
       await caseApi.updateCase(editingCase.value.id, props.workspaceCode, payload)
       ElMessage.success('用例已更新')
+    } else if (dialogMode.value === 'copy') {
+      await caseApi.createCase(props.workspaceCode, payload)
+      ElMessage.success('复制用例已创建')
     } else {
       await caseApi.createCase(props.workspaceCode, payload)
       ElMessage.success('用例已创建')
@@ -380,6 +421,75 @@ async function saveCase(payload: Parameters<typeof caseApi.createCase>[1]) {
     ElMessage.error(getRequestErrorMessage(error))
   } finally {
     saving.value = false
+  }
+}
+
+function openDefectDialog(item: CaseSummaryItem) {
+  defectCase.value = item
+  defectForm.title = `${item.title || item.caseNo || '用例'} - 缺陷`
+  defectForm.description = ''
+  defectForm.priority = 'P1'
+  defectForm.severity = 'HIGH'
+  defectForm.assigneeId = ''
+  defectForm.tags = []
+  defectFormError.value = ''
+  defectDialogVisible.value = true
+}
+
+function buildDefectFromCasePayload(): SaveDefectPayload {
+  return {
+    workspaceCode: defectCase.value?.workspaceCode,
+    title: defectForm.title.trim(),
+    description: defectForm.description.trim(),
+    priority: defectForm.priority,
+    severity: defectForm.severity,
+    assigneeId: Number.isFinite(Number(defectForm.assigneeId)) ? Number(defectForm.assigneeId) : null,
+    relatedCaseId: defectCase.value?.id ?? null,
+    tags: [...defectForm.tags],
+  }
+}
+
+function validateDefectFromCaseForm() {
+  if (!defectForm.title.trim()) {
+    return '请输入缺陷标题'
+  }
+  if (!defectForm.description.trim()) {
+    return '请输入缺陷描述'
+  }
+  if (!defectForm.assigneeId.trim()) {
+    return '请选择处理人'
+  }
+  if (!Number.isFinite(Number(defectForm.assigneeId))) {
+    return '处理人数据异常，请重新选择'
+  }
+  return ''
+}
+
+async function submitDefectFromCase() {
+  if (!defectCase.value || defectSaving.value) {
+    return
+  }
+
+  const error = validateDefectFromCaseForm()
+  if (error) {
+    defectFormError.value = error
+    return
+  }
+
+  defectSaving.value = true
+  defectFormError.value = ''
+  try {
+    await defectApi.createDefectFromCase(
+      defectCase.value.workspaceCode || props.workspaceCode,
+      defectCase.value.id,
+      buildDefectFromCasePayload(),
+    )
+    ElMessage.success('已从用例创建缺陷')
+    defectDialogVisible.value = false
+  } catch (error) {
+    defectFormError.value = getRequestErrorMessage(error)
+  } finally {
+    defectSaving.value = false
   }
 }
 
@@ -729,8 +839,13 @@ defineExpose({
                     >
                       {{ reviewingCaseId === item.id ? '评审中' : '评审' }}
                     </el-dropdown-item>
-                    <el-dropdown-item disabled>提缺陷</el-dropdown-item>
-                    <el-dropdown-item disabled>复制</el-dropdown-item>
+                    <el-dropdown-item @click="openDefectDialog(item)">提缺陷</el-dropdown-item>
+                    <el-dropdown-item
+                      :disabled="detailLoading && editingCase?.id === item.id"
+                      @click="openCopyDialog(item)"
+                    >
+                      {{ detailLoading && editingCase?.id === item.id && dialogMode === 'copy' ? '复制中' : '复制' }}
+                    </el-dropdown-item>
                     <el-dropdown-item
                       :disabled="togglingCaseId === item.id || runningCaseId === item.id || deletingCaseId === item.id || reviewingCaseId === item.id"
                       @click="handleToggleCaseStatus(item)"
@@ -833,6 +948,100 @@ defineExpose({
       <template #footer>
         <AppButton :disabled="batchMoveSaving" @click="batchMoveDialogVisible = false">取消</AppButton>
         <AppButton type="primary" :loading="batchMoveSaving" @click="saveBatchMove">保存</AppButton>
+      </template>
+    </AppDialog>
+
+    <AppDialog
+      v-model="defectDialogVisible"
+      title="从用例提缺陷"
+      width="720px"
+    >
+      <div class="case-defect-dialog">
+        <div class="case-defect-dialog__summary">
+          <span>{{ defectCase?.caseNo || `#${defectCase?.id}` }}</span>
+          <strong>{{ defectCase?.title || '-' }}</strong>
+        </div>
+
+        <div class="case-defect-dialog__field">
+          <span class="is-required">缺陷标题</span>
+          <el-input
+            v-model="defectForm.title"
+            :disabled="defectSaving"
+            placeholder="请输入缺陷标题"
+          />
+        </div>
+
+        <div class="case-defect-dialog__field">
+          <span class="is-required">缺陷描述</span>
+          <el-input
+            v-model="defectForm.description"
+            type="textarea"
+            :rows="5"
+            resize="none"
+            :disabled="defectSaving"
+            placeholder="请描述实际结果、复现步骤或影响范围"
+          />
+        </div>
+
+        <div class="case-defect-dialog__grid">
+          <div class="case-defect-dialog__field">
+            <span class="is-required">处理人</span>
+            <AppUserSelect
+              v-model="defectForm.assigneeId"
+              :workspace-code="defectCase?.workspaceCode || workspaceCode"
+              :disabled="defectSaving"
+              placeholder="请选择处理人"
+            />
+          </div>
+
+          <div class="case-defect-dialog__field">
+            <span class="is-required">严重级别</span>
+            <el-select
+              v-model="defectForm.severity"
+              class="case-defect-dialog__select"
+              :disabled="defectSaving"
+            >
+              <el-option
+                v-for="item in defectSeverityOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </div>
+        </div>
+
+        <div class="case-defect-dialog__field">
+          <span class="is-required">优先级</span>
+          <div class="case-defect-dialog__segment">
+            <button
+              v-for="item in defectPriorityOptions"
+              :key="item.value"
+              type="button"
+              :class="{ 'is-active': defectForm.priority === item.value }"
+              :disabled="defectSaving"
+              @click="defectForm.priority = item.value"
+            >
+              {{ item.label }}
+            </button>
+          </div>
+        </div>
+
+        <div class="case-defect-dialog__field">
+          <span>标签</span>
+          <AppTagInput
+            v-model="defectForm.tags"
+            :disabled="defectSaving"
+            placeholder="输入内容后回车添加标签"
+          />
+        </div>
+
+        <p v-if="defectFormError" class="case-defect-dialog__error">{{ defectFormError }}</p>
+      </div>
+
+      <template #footer>
+        <AppButton :disabled="defectSaving" @click="defectDialogVisible = false">取消</AppButton>
+        <AppButton type="primary" :loading="defectSaving" @click="submitDefectFromCase">创建缺陷</AppButton>
       </template>
     </AppDialog>
 
@@ -1167,6 +1376,111 @@ defineExpose({
   font-weight: 600;
 }
 
+.case-defect-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--app-space-4);
+}
+
+.case-defect-dialog__summary {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: var(--app-space-2);
+  padding: var(--app-space-2) var(--app-space-3);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-bg-page);
+}
+
+.case-defect-dialog__summary span {
+  flex: 0 0 auto;
+  color: var(--app-primary);
+  font-family: Consolas, Monaco, monospace;
+  font-size: var(--app-font-size-sm);
+}
+
+.case-defect-dialog__summary strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--app-text-primary);
+  font-size: var(--app-font-size-sm);
+  font-weight: 500;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.case-defect-dialog__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--app-space-3);
+}
+
+.case-defect-dialog__field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--app-space-2);
+}
+
+.case-defect-dialog__field > span {
+  color: var(--app-text-secondary);
+  font-size: var(--app-font-size-sm);
+  font-weight: 600;
+}
+
+.case-defect-dialog__field > span.is-required::before {
+  margin-right: 3px;
+  color: var(--app-danger);
+  content: '*';
+}
+
+.case-defect-dialog__select {
+  width: 100%;
+}
+
+.case-defect-dialog__segment {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--app-space-2);
+}
+
+.case-defect-dialog__segment button {
+  min-height: 34px;
+  padding: 0 var(--app-space-2);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius-md);
+  background: var(--app-bg-panel);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  font-size: var(--app-font-size-sm);
+  font-weight: 600;
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.case-defect-dialog__segment button:hover:not(:disabled),
+.case-defect-dialog__segment button.is-active {
+  border-color: var(--app-primary);
+  background: var(--app-primary-soft);
+  color: var(--app-primary);
+}
+
+.case-defect-dialog__segment button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.case-defect-dialog__error {
+  margin: 0;
+  padding: var(--app-space-2) var(--app-space-3);
+  border: 1px solid #fecaca;
+  border-radius: var(--app-radius-md);
+  background: var(--app-danger-soft);
+  color: var(--app-danger);
+  font-size: var(--app-font-size-sm);
+}
+
 @media (max-width: 720px) {
   .case-list-panel__header,
   .case-list-panel__footer {
@@ -1187,6 +1501,10 @@ defineExpose({
   .case-list-panel__pagination {
     width: 100%;
     flex-wrap: wrap;
+  }
+
+  .case-defect-dialog__grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

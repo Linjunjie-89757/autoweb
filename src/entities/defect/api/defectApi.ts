@@ -210,6 +210,14 @@ export const defectApi = {
     return normalizeDefectDetail(unwrapApiResponse(payload))
   },
 
+  async createDefectFromCase(workspaceCode = 'ALL', caseId: number, data: SaveDefectPayload) {
+    const payload = await httpPost<ApiResponse<DefectDetail>, SaveDefectPayload>(`/cases/${caseId}/bugs`, data, {
+      headers: workspaceHeaders(workspaceCode),
+    })
+
+    return normalizeDefectDetail(unwrapApiResponse(payload))
+  },
+
   async updateDefect(workspaceCode = 'ALL', id: number, data: SaveDefectPayload) {
     const payload = await httpPut<ApiResponse<DefectDetail>, SaveDefectPayload>(`/bugs/${id}`, data, {
       headers: workspaceHeaders(workspaceCode),

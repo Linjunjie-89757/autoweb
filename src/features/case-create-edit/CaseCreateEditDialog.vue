@@ -55,6 +55,13 @@ const formError = reactive({
   message: '',
 })
 
+const dialogTitle = computed(() => {
+  if (props.mode === 'copy') {
+    return '复制用例'
+  }
+  return props.mode === 'create' ? '新增用例' : '编辑用例'
+})
+
 const directoryOptions = computed(() => {
   return flattenCaseDirectoryOptions(props.directories).filter((item) => {
     return form.workspaceCode === 'ALL' || item.workspaceCode === form.workspaceCode
@@ -63,10 +70,10 @@ const directoryOptions = computed(() => {
 
 function resetForm() {
   const nextForm =
-    props.mode === 'edit' && props.caseDetail
-      ? createCaseFormFromDetail(props.caseDetail)
-      : props.mode === 'edit' && props.caseItem
-        ? createCaseFormFromSummary(props.caseItem, props.defaultWorkspaceCode)
+    props.mode !== 'create' && props.caseDetail
+      ? createCaseFormFromDetail(props.caseDetail, props.mode)
+      : props.mode !== 'create' && props.caseItem
+        ? createCaseFormFromSummary(props.caseItem, props.defaultWorkspaceCode, props.mode)
         : createDefaultCaseForm(props.defaultWorkspaceCode, props.defaultDirectoryId)
 
   Object.assign(form, nextForm)
@@ -118,7 +125,7 @@ watch(
 <template>
   <AppDialog
     :model-value="modelValue"
-    :title="mode === 'create' ? '新增用例' : '编辑用例'"
+    :title="dialogTitle"
     width="720px"
     @update:model-value="emit('update:modelValue', $event)"
   >

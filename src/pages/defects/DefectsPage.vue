@@ -18,8 +18,6 @@ const workspaceLoading = ref(false)
 const workspaceReady = ref(false)
 const workspaceErrorMessage = ref('')
 const statistics = ref<DefectStatistics | null>(null)
-const statisticsLoading = ref(false)
-const statisticsErrorMessage = ref('')
 const filter = ref<DefectClientFilter>({
   keyword: '',
   status: '',
@@ -90,14 +88,10 @@ async function loadUsers() {
 }
 
 async function loadStatistics() {
-  statisticsLoading.value = true
-  statisticsErrorMessage.value = ''
   try {
     statistics.value = await defectApi.getDefectStatistics(workspaceCode.value)
-  } catch (error) {
-    statisticsErrorMessage.value = getRequestErrorMessage(error)
-  } finally {
-    statisticsLoading.value = false
+  } catch {
+    statistics.value = null
   }
 }
 
@@ -168,10 +162,7 @@ onMounted(() => {
     <div class="defects-page">
       <DefectSummaryPanel
         :statistics="statistics"
-        :loading="statisticsLoading"
-        :error-message="statisticsErrorMessage"
         :active-status="filter.status"
-        @retry="loadStatistics"
         @select="handleStatSelect"
       />
 

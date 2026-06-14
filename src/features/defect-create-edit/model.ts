@@ -11,6 +11,7 @@ export interface DefectForm {
   assigneeId: string
   relatedCaseId: string
   tagsText: string
+  tags: string[]
 }
 
 export function createDefaultDefectForm(workspaceCode = 'ALL'): DefectForm {
@@ -23,6 +24,7 @@ export function createDefaultDefectForm(workspaceCode = 'ALL'): DefectForm {
     assigneeId: '',
     relatedCaseId: '',
     tagsText: '',
+    tags: [],
   }
 }
 
@@ -36,6 +38,7 @@ export function createDefectFormFromDetail(item: DefectDetail): DefectForm {
     assigneeId: item.assigneeId ? String(item.assigneeId) : '',
     relatedCaseId: item.relatedCaseId ? String(item.relatedCaseId) : '',
     tagsText: Array.isArray(item.tags) ? item.tags.join(', ') : '',
+    tags: Array.isArray(item.tags) ? [...item.tags] : [],
   }
 }
 
@@ -49,6 +52,7 @@ export function createDefectFormFromSummary(item: DefectSummaryItem, fallbackWor
     assigneeId: '',
     relatedCaseId: item.relatedCaseId ? String(item.relatedCaseId) : '',
     tagsText: Array.isArray(item.tags) ? item.tags.join(', ') : '',
+    tags: Array.isArray(item.tags) ? [...item.tags] : [],
   }
 }
 
@@ -78,7 +82,7 @@ export function buildSaveDefectPayload(form: DefectForm): SaveDefectPayload {
     severity: form.severity,
     assigneeId: parseOptionalId(form.assigneeId),
     relatedCaseId: parseOptionalId(form.relatedCaseId),
-    tags: parseTags(form.tagsText),
+    tags: form.tags.length ? form.tags : parseTags(form.tagsText),
   }
 }
 

@@ -18,7 +18,6 @@ import {
   type TransitionDefectPayload,
 } from '@/entities/defect'
 import { assignDefect } from '@/features/defect-assign'
-import { DefectCreateEditDialog } from '@/features/defect-create-edit'
 import { DefectTransitionDialog, transitionDefect } from '@/features/defect-transition'
 import { getRequestErrorMessage } from '@/shared/api/error'
 import AppButton from '@/shared/ui/app-button/AppButton.vue'
@@ -57,7 +56,6 @@ const pageNo = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const totalPages = ref(0)
-const dialogVisible = ref(false)
 const saving = ref(false)
 const detailDrawerVisible = ref(false)
 const detailDefectId = ref<number | null>(null)
@@ -250,7 +248,10 @@ async function loadDefects() {
 }
 
 function openCreateDialog() {
-  dialogVisible.value = true
+  void router.push({
+    path: '/bugs/create',
+    query: props.workspaceCode && props.workspaceCode !== 'ALL' ? { workspace: props.workspaceCode } : undefined,
+  })
 }
 
 function openEditDialog(item: DefectSummaryItem) {
@@ -335,21 +336,6 @@ async function deleteActiveDetailDefect() {
   }
 }
 
-async function submitDefect(payload: Parameters<typeof defectApi.createDefect>[1]) {
-  saving.value = true
-  try {
-    await defectApi.createDefect(props.workspaceCode, payload)
-    ElMessage.success('??????')
-    dialogVisible.value = false
-    await loadDefects()
-    detailRefreshKey.value += 1
-  } catch (error) {
-    ElMessage.error(getRequestErrorMessage(error))
-  } finally {
-    saving.value = false
-  }
-}
-
 async function submitTransitionDefect(payload: TransitionDefectPayload) {
   if (!transitioningDefect.value || transitioningDefectId.value !== null || assigningDefectId.value !== null) {
     return
@@ -383,7 +369,6 @@ async function submitTransitionDefect(payload: TransitionDefectPayload) {
 watch(
   () => props.workspaceCode,
   () => {
-    dialogVisible.value = false
     detailDrawerVisible.value = false
     activeDetailRowId.value = null
     transitionDialogVisible.value = false
@@ -601,14 +586,6 @@ defineExpose({
         />
       </div>
     </div>
-
-    <DefectCreateEditDialog
-      v-model="dialogVisible"
-      mode="create"
-      :saving="saving"
-      :default-workspace-code="workspaceCode"
-      @submit="submitDefect"
-    />
 
     <DefectDetailDrawer
       v-model="detailDrawerVisible"

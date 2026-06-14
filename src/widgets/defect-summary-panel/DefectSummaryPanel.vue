@@ -1,9 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { RefreshRight } from '@element-plus/icons-vue'
 
 import type { DefectStatistics } from '@/entities/defect'
-import AppButton from '@/shared/ui/app-button/AppButton.vue'
 
 type DefectSummaryCard = {
   label: string
@@ -15,13 +13,10 @@ type DefectSummaryCard = {
 
 const props = defineProps<{
   statistics: DefectStatistics | null
-  loading?: boolean
-  errorMessage?: string
   activeStatus?: string
 }>()
 
 const emit = defineEmits<{
-  retry: []
   select: [status: string]
 }>()
 
@@ -80,11 +75,6 @@ function handleSelect(status: string) {
       <strong>{{ stat.value }}</strong>
       <p>{{ stat.description }}</p>
     </article>
-
-    <div v-if="errorMessage" class="defect-summary-panel__error">
-      <span>{{ errorMessage }}</span>
-      <AppButton size="small" :icon="RefreshRight" :disabled="loading" @click="$emit('retry')">重试</AppButton>
-    </div>
   </div>
 </template>
 
@@ -198,26 +188,6 @@ function handleSelect(status: string) {
   box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.12);
 }
 
-.defect-summary-panel__error {
-  display: flex;
-  min-height: 144px;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--app-space-3);
-  padding: 20px 24px;
-  border: 1px solid #fecaca;
-  border-radius: var(--app-radius-lg);
-  background: var(--app-danger-soft);
-  color: var(--app-danger);
-  font-size: var(--app-font-size-sm);
-}
-
-.defect-summary-panel__error span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 @media (max-width: 1180px) {
   .defect-summary-panel {
